@@ -2,17 +2,15 @@
 # The viscosity is computed from the integral of the autocorrelation function of 
 # the elements of the pressure tensor from the CHARMM molecular dynamics package.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import sys
 import os
-import re
-import time as tm
+import time
+import pylab
 import numpy as np
 import pandas as pd
-import pylab
 from scipy import integrate
 from scipy.constants import Boltzmann
-from tqdm import trange
 from multiprocessing import Process
+from tqdm import trange
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # convert timelapse from sec to H:M:S
@@ -44,7 +42,7 @@ def rng(r, pb):
 
 # Define ACF function
 def acf(x, pb):
-    N = time.shape[0]
+    N = Time.shape[0]
     size = int(N/2)
 
     autocorrelation = np.zeros(size, dtype=float)
@@ -75,12 +73,6 @@ def getnumsteps():
         print("Your input is not valid!!")
         return getnumsteps()
 
-# Get the timestep of the simulation
-def gettimestep():
-    global timestep
-    timestep = input('Enter the simulation timestep in [ps]: ').strip()
-    timestep = float(timestep)
-
 # From which time step to start processing the data
 def getstartstep():
     global start_step
@@ -91,27 +83,41 @@ def getstartstep():
         print("Your input is not valid!!")
         return getstartstep()
 
+# Get the timestep of the simulation
+def gettimestep():
+    global timestep
+    timestep = input('Enter the simulation timestep in [ps]: ').strip()
+    try:
+        timestep = float(timestep)
+        if timestep < 0:
+            print("timestep must be a positive number!")
+            return gettimestep()
+    except ValueError:
+        print("Your input is not valid!!")
+
 # Get the temperature of the MD simulation
 def gettemp():
     global temperature
-    regex = '[+-]?[0-9]+\.[0-9]+'
     temperature = input('Enter the temperature of your MD simulation in [K]: ').strip()
-    if (re.search(regex, temperature)):
+    try:
         temperature = float(temperature)
-    else:
+        if temperature < 0:
+            print("temperature must be a positive number!")
+            return gettemp()
+    except ValueError:
         print("Your input is not valid!!")
-        return gettemp()
 
 # Get the average volume of the simulation box
 def getvolume():
     global volume_avg
-    regex = '[+]?[0-9]+\.[0-9]+'
     volume_avg = input('Enter the average volume of your simulation box in [A^3]: ').strip()
-    if (re.search(regex, volume_avg)):
+    try:
         volume_avg = float(volume_avg) * 10**(-30)
-    else:
+        if volume_avg < 0:
+            print("volume must be a positive number!")
+            return getvolume()
+    except ValueError:
         print("Your input is not valid!!")
-        return getvolume()
 
 # Choose between Green-Kubo and Einstein expression
 def getmethod():
@@ -226,10 +232,10 @@ kBT = Boltzmann * temperature
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Set the start time
-t_start = tm.perf_counter()
+t_start = time.perf_counter()
 
 # Initiate the pressure tensor component lists
-# time = []
+# Time = []
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
 
 # Read the pressure tensor elements from data file
@@ -238,7 +244,7 @@ with open(data_file, "r") as file:
     for l in rng(num_steps, pbar):
         line = file.readline()
         step = list(map(float,line.split()))
-        # time.append(step[0])
+        # Time.append(step[0])
         Pxx.append(step[1]*atm_to_Pa)
         Pyy.append(step[5]*atm_to_Pa)
         Pzz.append(step[9]*atm_to_Pa)
@@ -249,11 +255,11 @@ with open(data_file, "r") as file:
 # Generate the time array
 total_steps = num_steps - start_step
 end_step = (num_steps - start_step) * timestep
-time = np.linspace(timestep, end_step, num=total_steps, endpoint=True)
+Time = np.linspace(timestep, end_step, num=total_steps, endpoint=True)
 
 # Convert created lists to numpy arrays starting from given step
 print('\nPreparing pressure tensor arrays')
-# time = np.array(time[:num_steps-start_step])
+# Time = np.array(Time[:num_steps-start_step])
 Pxx = np.array(Pxx[start_step:])
 Pyy = np.array(Pyy[start_step:])
 Pzz = np.array(Pzz[start_step:])
@@ -266,7 +272,7 @@ Pyz = np.array(Pyz[start_step:])
 # This can be used to speed up getting the autocorrelation function
 if factor > 1:
     print('\nReducing down the data by the given factor: ' + str(factor))
-    time = time[::factor]
+    Time = Time[::factor]
     Pxx = Pxx[::factor]
     Pyy = Pyy[::factor]
     Pzz = Pzz[::factor]
@@ -284,7 +290,7 @@ if GKorEn == 1:
     Pyyzz = (Pyy - Pzz) / 2
 
     # Calculate the viscosity from Einstein relation by integrating the components of the P tensor
-    timestep = (time[1] - time[0]) * 10**(-12)
+    timestep = (Time[1] - Time[0]) * 10**(-12)
 
     Pxy_int = integrate.cumtrapz(y=Pxy, dx=timestep, initial=0)
     Pxz_int = integrate.cumtrapz(y=Pxz, dx=timestep, initial=0)
@@ -294,13 +300,13 @@ if GKorEn == 1:
 
     en_int = (Pxy_int**2 + Pxz_int**2 + Pyz_int**2 + Pxxyy_int**2 + Pyyzz_int**2) / 5
 
-    viscosity = en_int * ( volume_avg / (2 * kBT * time[:] * 10**(-12)) )
+    viscosity = en_int * ( volume_avg / (2 * kBT * Time[:] * 10**(-12)) )
     print('-'*30 + '\n' + 'Viscosity(Einstein): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
 
     # Plot the evolution of the viscosity in time
     if viscosity_plot == 1:
         pylab.figure()
-        pylab.plot(time[:], viscosity[:]*1000, label='Viscosity')
+        pylab.plot(Time[:], viscosity[:]*1000, label='Viscosity')
         pylab.xlabel('Time (ps)')
         pylab.ylabel('Viscosity (cP)')
         pylab.legend()
@@ -308,234 +314,209 @@ if GKorEn == 1:
 
     # Save the evolution of the viscosity in time as a csv file
     if save_plot == 1:
-        time = time[::save_step]
+        Time = Time[::save_step]
         viscosity = viscosity[::save_step]
-        df = pd.DataFrame({"time(ps)" : time[:], "viscosity(Pa.s)" : viscosity[:]})
+        df = pd.DataFrame({"time(ps)" : Time[:], "viscosity(Pa.s)" : viscosity[:]})
         df.to_csv("viscosity_Einstein.csv", index=False)
-
-    sys.exit()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Viscosity from Green-Kubo relation
-# Calculate the shear components of the pressure tensor
-if GKtype == 1:
-    Pxxyy = (Pxx - Pyy) / 2
-    Pyyzz = (Pyy - Pzz) / 2
-    Pxxzz = (Pxx - Pzz) / 2
+elif GKorEn == 0:
+    # Calculate the shear components of the pressure tensor
+    if GKtype == 1:
+        Pxxyy = (Pxx - Pyy) / 2
+        Pyyzz = (Pyy - Pzz) / 2
+        Pxxzz = (Pxx - Pzz) / 2
 
-elif GKtype == 2:
-    Pxy *= 2
-    Pxz *= 2
-    Pyz *= 2
-    Pxxyz = (4/3) * (Pxx - ((Pxx + Pyy + Pzz) / 3))
-    Pyxyz = (4/3) * (Pyy - ((Pxx + Pyy + Pzz) / 3))
-    Pzxyz = (4/3) * (Pzz - ((Pxx + Pyy + Pzz) / 3))
+    elif GKtype == 2:
+        Pxy *= 2
+        Pxz *= 2
+        Pyz *= 2
+        Pxxyz = (4/3) * (Pxx - ((Pxx + Pyy + Pzz) / 3))
+        Pyxyz = (4/3) * (Pyy - ((Pxx + Pyy + Pzz) / 3))
+        Pzxyz = (4/3) * (Pzz - ((Pxx + Pyy + Pzz) / 3))
 
-# Calculate the ACFs
-# Note that we use max 1/2 the length of the data as correlation time
-# because beyond that there are not enough available time windows to be accurate
-print('\nCalculating ACFs of the pressure tensor')
+    # Calculate the ACFs
+    # Note that we use max 1/2 the length of the data as correlation time
+    # because beyond that there are not enough available time windows to be accurate
+    print('\nCalculating ACFs of the pressure tensor')
 
-def P1():
-    Pxy_acf = acf(Pxy, pbar)
-    file = open("Pxy_acf", "wb")
-    np.save(file, Pxy_acf)
-    file.close
+    def P1():
+        Pxy_acf = acf(Pxy, pbar)
+        with open("Pxy_acf", "wb") as file:
+            np.save(file, Pxy_acf)
 
-def P2():
-    Pxz_acf = acf(Pxz, 0)
-    file = open("Pxz_acf", "wb")
-    np.save(file, Pxz_acf)
-    file.close
+    def P2():
+        Pxz_acf = acf(Pxz, 0)
+        with open("Pxz_acf", "wb") as file:
+            np.save(file, Pxz_acf)
 
-def P3():
-    Pyz_acf = acf(Pyz, 0)
-    file = open("Pyz_acf", "wb")
-    np.save(file, Pyz_acf)
-    file.close
+    def P3():
+        Pyz_acf = acf(Pyz, 0)
+        with open("Pyz_acf", "wb") as file:
+            np.save(file, Pyz_acf)
 
-if GKtype == 1:
+    if GKtype == 1:
 
-    def P4():
-        Pxxyy_acf = acf(Pxxyy, 0)
-        file = open("Pxxyy_acf", "wb")
-        np.save(file, Pxxyy_acf)
-        file.close
+        def P4():
+            Pxxyy_acf = acf(Pxxyy, 0)
+            with open("Pxxyy_acf", "wb") as file:
+                np.save(file, Pxxyy_acf)
 
-    def P5():
-        Pyyzz_acf = acf(Pyyzz, 0)
-        file = open("Pyyzz_acf", "wb")
-        np.save(file, Pyyzz_acf)
-        file.close
+        def P5():
+            Pyyzz_acf = acf(Pyyzz, 0)
+            with open("Pyyzz_acf", "wb") as file:
+                np.save(file, Pyyzz_acf)
 
-    def P6():
-        Pxxzz_acf = acf(Pxxzz, 0)
-        file = open("Pxxzz_acf", "wb")
-        np.save(file, Pxxzz_acf)
-        file.close
+        def P6():
+            Pxxzz_acf = acf(Pxxzz, 0)
+            with open("Pxxzz_acf", "wb") as file:
+                np.save(file, Pxxzz_acf)
 
-elif GKtype == 2:
+    elif GKtype == 2:
 
-    def P4():
-        Pxxyz_acf = acf(Pxxyz, 0)
-        file = open("Pxxyz_acf", "wb")
-        np.save(file, Pxxyz_acf)
-        file.close
+        def P4():
+            Pxxyz_acf = acf(Pxxyz, 0)
+            with open("Pxxyz_acf", "wb") as file:
+                np.save(file, Pxxyz_acf)
 
-    def P5():
-        Pyxyz_acf = acf(Pyxyz, 0)
-        file = open("Pyxyz_acf", "wb")
-        np.save(file, Pyxyz_acf)
-        file.close
+        def P5():
+            Pyxyz_acf = acf(Pyxyz, 0)
+            with open("Pyxyz_acf", "wb") as file:
+                np.save(file, Pyxyz_acf)
 
-    def P6():
-        Pzxyz_acf = acf(Pzxyz, 0)
-        file = open("Pzxyz_acf", "wb")
-        np.save(file, Pzxyz_acf)
-        file.close
+        def P6():
+            Pzxyz_acf = acf(Pzxyz, 0)
+            with open("Pzxyz_acf", "wb") as file:
+                np.save(file, Pzxyz_acf)
 
-if GKtype == 0:
-    # Run ACF calculations in parallel
-    runInParallel(P1, P2, P3)
+    if GKtype == 0:
+        # Run ACF calculations in parallel
+        runInParallel(P1, P2, P3)
 
-    # Read back the saved numpy arrays from file to an array
-    file = open("Pxy_acf", "rb")
-    Pxy_acf = np.load(file)
-    file.close
+        # Read back the saved numpy arrays from file to an array
+        with open("Pxy_acf", "rb") as file:
+            Pxy_acf = np.load(file)
 
-    file = open("Pxz_acf", "rb")
-    Pxz_acf = np.load(file)
-    file.close
+        with open("Pxz_acf", "rb") as file:
+            Pxz_acf = np.load(file)
 
-    file = open("Pyz_acf", "rb")
-    Pyz_acf = np.load(file)
-    file.close
+        with open("Pyz_acf", "rb") as file:
+            Pyz_acf = np.load(file)
 
-elif GKtype == 1:
-    # Run ACF calculations in parallel
-    runInParallel(P1, P2, P3, P4, P5, P6)
+    elif GKtype == 1:
+        # Run ACF calculations in parallel
+        runInParallel(P1, P2, P3, P4, P5, P6)
 
-    # Read back the saved numpy arrays from file to an array
-    file = open("Pxy_acf", "rb")
-    Pxy_acf = np.load(file)
-    file.close
+        # Read back the saved numpy arrays from file to an array
+        with open("Pxy_acf", "rb") as file:
+            Pxy_acf = np.load(file)
 
-    file = open("Pxz_acf", "rb")
-    Pxz_acf = np.load(file)
-    file.close
+        with open("Pxz_acf", "rb") as file:
+            Pxz_acf = np.load(file)
 
-    file = open("Pyz_acf", "rb")
-    Pyz_acf = np.load(file)
-    file.close
+        with open("Pyz_acf", "rb") as file:
+            Pyz_acf = np.load(file)
 
-    file = open("Pxxyy_acf", "rb")
-    Pxxyy_acf = np.load(file)
-    file.close
+        with open("Pxxyy_acf", "rb") as file:
+            Pxxyy_acf = np.load(file)
 
-    file = open("Pyyzz_acf", "rb")
-    Pyyzz_acf = np.load(file)
-    file.close
+        with open("Pyyzz_acf", "rb") as file:
+            Pyyzz_acf = np.load(file)
 
-    file = open("Pxxzz_acf", "rb")
-    Pxxzz_acf = np.load(file)
-    file.close
+        with open("Pxxzz_acf", "rb") as file:
+            Pxxzz_acf = np.load(file)
 
-elif GKtype == 2:
-    # Run ACF calculations in parallel
-    runInParallel(P1, P2, P3, P4, P5, P6)
+    elif GKtype == 2:
+        # Run ACF calculations in parallel
+        runInParallel(P1, P2, P3, P4, P5, P6)
 
-    # Read back the saved numpy arrays from file to an array
-    file = open("Pxy_acf", "rb")
-    Pxy_acf = np.load(file)
-    file.close
+        # Read back the saved numpy arrays from file to an array
+        with open("Pxy_acf", "rb") as file:
+            Pxy_acf = np.load(file)
 
-    file = open("Pxz_acf", "rb")
-    Pxz_acf = np.load(file)
-    file.close
+        with open("Pxz_acf", "rb") as file:
+            Pxz_acf = np.load(file)
 
-    file = open("Pyz_acf", "rb")
-    Pyz_acf = np.load(file)
-    file.close
+        with open("Pyz_acf", "rb") as file:
+            Pyz_acf = np.load(file)
 
-    file = open("Pxxyz_acf", "rb")
-    Pxxyz_acf = np.load(file)
-    file.close
+        with open("Pxxyz_acf", "rb") as file:
+            Pxxyz_acf = np.load(file)
 
-    file = open("Pyxyz_acf", "rb")
-    Pyxyz_acf = np.load(file)
-    file.close
+        with open("Pyxyz_acf", "rb") as file:
+            Pyxyz_acf = np.load(file)
 
-    file = open("Pzxyz_acf", "rb")
-    Pzxyz_acf = np.load(file)
-    file.close
+        with open("Pzxyz_acf", "rb") as file:
+            Pzxyz_acf = np.load(file)
 
-# Calculate the average of ACFs
-if GKtype == 0:
-    avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf) / 3
+    # Calculate the average of ACFs
+    if GKtype == 0:
+        avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf) / 3
 
-elif GKtype == 1:
-    avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyy_acf + Pyyzz_acf + Pxxzz_acf) / 6
+    elif GKtype == 1:
+        avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyy_acf + Pyyzz_acf + Pxxzz_acf) / 6
 
-elif GKtype == 2:
-    avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyz_acf + Pyxyz_acf + Pzxyz_acf) / 10
+    elif GKtype == 2:
+        avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyz_acf + Pyxyz_acf + Pzxyz_acf) / 10
 
-# Plot the average ACF
-if acf_plot == 1:
-    norm_avg_acf = avg_acf / avg_acf[0]
-    pylab.figure()
-    pylab.plot(time[:avg_acf.shape[0]], norm_avg_acf[:], label='Average')
-    pylab.xlabel('Time (ps)')
-    pylab.ylabel('ACF')
-    pylab.legend()
-    pylab.show()
+    # Plot the average ACF
+    if acf_plot == 1:
+        norm_avg_acf = avg_acf / avg_acf[0]
+        pylab.figure()
+        pylab.plot(Time[:avg_acf.shape[0]], norm_avg_acf[:], label='Average')
+        pylab.xlabel('Time (ps)')
+        pylab.ylabel('ACF')
+        pylab.legend()
+        pylab.show()
 
-# Save the normalized average ACF as csv file
-if save_plot == 1:
-    norm_avg_acf = avg_acf / avg_acf[0]
-    df = pd.DataFrame({"time (ps)" : time[:avg_acf.shape[0]], "ACF" : norm_avg_acf[:]})
-    df.to_csv("avg_acf.csv", index=False)
+    # Save the normalized average ACF as csv file
+    if save_plot == 1:
+        norm_avg_acf = avg_acf / avg_acf[0]
+        df = pd.DataFrame({"time (ps)" : Time[:avg_acf.shape[0]], "ACF" : norm_avg_acf[:]})
+        df.to_csv("avg_acf.csv", index=False)
 
-# Integrate the average ACF to get the viscosity using Green-Kubo relation
-timestep = (time[1] - time[0]) * 10**(-12)
-gk_int = integrate.cumtrapz(y=avg_acf, dx=timestep, initial=0)
-viscosity = gk_int * (volume_avg / kBT)
-print('-'*40 + '\n' + 'Viscosity(Green-Kubo): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
+    # Integrate the average ACF to get the viscosity using Green-Kubo relation
+    timestep = (Time[1] - Time[0]) * 10**(-12)
+    gk_int = integrate.cumtrapz(y=avg_acf, dx=timestep, initial=0)
+    viscosity = gk_int * (volume_avg / kBT)
+    print('-'*40 + '\n' + 'Viscosity(Green-Kubo): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
 
-# Plot the time evolution of the viscosity estimate
-if viscosity_plot == 1:
-    pylab.figure()
-    pylab.plot(time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
-    pylab.xlabel('Time (ps)')
-    pylab.ylabel('Viscosity (cP)')
-    pylab.legend()
-    pylab.show()
+    # Plot the time evolution of the viscosity estimate
+    if viscosity_plot == 1:
+        pylab.figure()
+        pylab.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
+        pylab.xlabel('Time (ps)')
+        pylab.ylabel('Viscosity (cP)')
+        pylab.legend()
+        pylab.show()
 
-# Save running integral of the viscosity as csv file
-if save_plot == 1:
-    time = time[::save_step]
-    viscosity = viscosity[::save_step]
-    df = pd.DataFrame({"time(ps)" : time[:viscosity.shape[0]], "viscosity(Pa.s)" : viscosity[:]})
-    df.to_csv("viscosity_GK.csv", index=False)
+    # Save running integral of the viscosity as csv file
+    if save_plot == 1:
+        Time = Time[::save_step]
+        viscosity = viscosity[::save_step]
+        df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]], "viscosity(Pa.s)" : viscosity[:]})
+        df.to_csv("viscosity_GK.csv", index=False)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Remove extra files
-os.remove('Pxy_acf')
-os.remove('Pxz_acf')
-os.remove('Pyz_acf')
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Remove extra files
+    os.remove('Pxy_acf')
+    os.remove('Pxz_acf')
+    os.remove('Pyz_acf')
 
-if GKtype == 1:
-    os.remove('Pxxyy_acf')
-    os.remove('Pxxzz_acf')
-    os.remove('Pyyzz_acf')
+    if GKtype == 1:
+        os.remove('Pxxyy_acf')
+        os.remove('Pxxzz_acf')
+        os.remove('Pyyzz_acf')
 
-if GKtype == 2:
-    os.remove('Pxxyz_acf')
-    os.remove('Pyxyz_acf')
-    os.remove('Pzxyz_acf')
+    elif GKtype == 2:
+        os.remove('Pxxyz_acf')
+        os.remove('Pyxyz_acf')
+        os.remove('Pzxyz_acf')
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Set the end time and print the execution time
-t_end = tm.perf_counter()
+t_end = time.perf_counter()
 wall_time = convert_time(t_end - t_start)
 print(40*'-')
 print("wall-time: " + str(wall_time))
