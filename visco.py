@@ -51,9 +51,6 @@ def acf(x, pb):
     for shift in rng(size, pb):
             autocorrelation[shift] = np.mean( (x[:N-shift]) * (x[shift:]) )
 
-    # autocorrelation = np.zeros([0, size])
-    # autocorrelation = np.append(autocorrelation, [1.0 if shift==0 else np.corrcoef(x[shift:],x[:-shift])[0][1] for shift in trange(size)])
-    
     return autocorrelation
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
