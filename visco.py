@@ -1,7 +1,17 @@
+# --------------------------------------------------------------------------------------------
+# visco.py is a program for calculating viscousity from molecular dynamics (MD) simulations.
+# Copyright (C) 2021 Omid Shayestehpour
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+# 
 # Calculation of viscosity using the Einstein or Green-Kubo expressions.
-# The viscosity is computed from the integral of the autocorrelation function of 
-# the elements of the pressure tensor from the CHARMM molecular dynamics package.
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Viscosity is computed from the integral of the elements of the pressure tensor
+# (or their autocorrelation function) from the CHARMM MD package.
+# --------------------------------------------------------------------------------------------
+
 import os
 import time
 import pylab
