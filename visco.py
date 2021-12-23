@@ -1,5 +1,6 @@
 # --------------------------------------------------------------------------------------------
-# visco.py is a program for calculating viscousity from molecular dynamics (MD) simulations.
+#
+# visco.py is a code for calculating viscosity from molecular dynamics (MD) simulations.
 # Copyright (C) 2021 Omid Shayestehpour
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -9,7 +10,12 @@
 # 
 # Calculation of viscosity using the Einstein or Green-Kubo expressions.
 # Viscosity is computed from the integral of the elements of the pressure tensor
-# (or their autocorrelation function) from the CHARMM MD package.
+# (or their autocorrelation function) collected from a MD simulation.
+#
+# Notice: the pressure tensor file should have space-separated columns 
+# of the following order and units of [atm]:
+# Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
+#
 # --------------------------------------------------------------------------------------------
 
 import os
@@ -65,7 +71,7 @@ def acf(x, pb):
 # Get name of the data file
 def getfile():
     global data_file
-    data_file = input("\nEnter the name of your pressure tensor data file: ").strip()
+    data_file = input("\nEnter the name of your pressure tensor data file\nthe pressure tensor file should have space-separated columns of the following order and units of (atm)\nPxx, Pyy, Pzz, Pxy, Pxz, Pyz: ").strip()
     try:
         with open(data_file, "r") as file:
             file.readline()
@@ -93,7 +99,7 @@ def getstartstep():
         print("Your input is not valid!!")
         return getstartstep()
 
-# Get the timestep of the simulation
+# Get the timestep of the simulation (assuming pressure data is collected in each timestep)
 def gettimestep():
     global timestep
     timestep = input('Enter the simulation timestep in [ps]: ').strip()
@@ -233,7 +239,7 @@ saveplot()
 if save_plot == 1:
     getsavestep()
 
-# Show progress bars (when running interactively)
+# Show progress bars, 0 = disable (use when running interactively) 
 pbar = 1
 # Conversion ratio from atm to Pa
 atm_to_Pa = 101325
@@ -248,24 +254,24 @@ t_start = time.perf_counter()
 # Time = []
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
 
-# Read the pressure tensor elements from data file
+# Read the pressure tensor elements from data file (indices of tensor elements are based on CHARMM output file)
 print('\nReading the pressure tensor data file')
 with open(data_file, "r") as file:
     for l in rng(num_steps, pbar):
         line = file.readline()
-        step = list(map(float,line.split()))
+        step = list(map(float, line.split()))
         # Time.append(step[0])
-        Pxx.append(step[1]*atm_to_Pa)
-        Pyy.append(step[5]*atm_to_Pa)
-        Pzz.append(step[9]*atm_to_Pa)
-        Pxy.append(step[2]*atm_to_Pa)
-        Pxz.append(step[3]*atm_to_Pa)
-        Pyz.append(step[6]*atm_to_Pa)
+        Pxx.append(step[0]*atm_to_Pa)
+        Pyy.append(step[1]*atm_to_Pa)
+        Pzz.append(step[2]*atm_to_Pa)
+        Pxy.append(step[3]*atm_to_Pa)
+        Pxz.append(step[4]*atm_to_Pa)
+        Pyz.append(step[5]*atm_to_Pa)
 
 # Generate the time array
 total_steps = num_steps - start_step
-end_step = (num_steps - start_step) * timestep
-Time = np.linspace(timestep, end_step, num=total_steps, endpoint=True)
+end_step = total_steps * timestep
+Time = np.linspace(0, end_step, num=total_steps, endpoint=False)
 
 # Convert created lists to numpy arrays starting from given step
 print('\nPreparing pressure tensor arrays')
@@ -281,7 +287,7 @@ Pyz = np.array(Pyz[start_step:])
 # 1 uses all of the gathered data, 10 uses one 10th
 # This can be used to speed up getting the autocorrelation function
 if factor > 1:
-    print('\nReducing down the data by the given factor: ' + str(factor))
+    print('\nReducing down the data by the given factor: {}'.format(factor))
     Time = Time[::factor]
     Pxx = Pxx[::factor]
     Pyy = Pyy[::factor]
@@ -310,7 +316,7 @@ if GKorEn == 1:
 
     en_int = (Pxy_int**2 + Pxz_int**2 + Pyz_int**2 + Pxxyy_int**2 + Pyyzz_int**2) / 5
 
-    viscosity = en_int * ( volume_avg / (2 * kBT * Time[:] * 10**(-12)) )
+    viscosity = en_int[1:] * ( volume_avg / (2 * kBT * Time[1:] * 10**(-12)) )
     print('-'*30 + '\n' + 'Viscosity(Einstein): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
 
     # Plot the evolution of the viscosity in time
@@ -324,7 +330,7 @@ if GKorEn == 1:
 
     # Save the evolution of the viscosity in time as a csv file
     if save_plot == 1:
-        Time = Time[::save_step]
+        time = time[::save_step]
         viscosity = viscosity[::save_step]
         df = pd.DataFrame({"time(ps)" : Time[:], "viscosity(Pa.s)" : viscosity[:]})
         df.to_csv("viscosity_Einstein.csv", index=False)
@@ -470,7 +476,7 @@ elif GKorEn == 0:
     elif GKtype == 2:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyz_acf + Pyxyz_acf + Pzxyz_acf) / 10
 
-    # Plot the average ACF
+    # Plot the normalized average ACF
     if acf_plot == 1:
         norm_avg_acf = avg_acf / avg_acf[0]
         pylab.figure()
