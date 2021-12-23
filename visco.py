@@ -10,7 +10,7 @@
 # 
 # Calculation of viscosity using the Einstein or Green-Kubo expressions.
 # Viscosity is computed from the integral of the elements of the pressure tensor
-# (or their autocorrelation function) collected from a MD simulation.
+# (or their autocorrelation function) collected from MD simulations.
 #
 # Notice: the pressure tensor file should have space-separated columns 
 # of the following order and units of [atm]:
