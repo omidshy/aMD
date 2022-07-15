@@ -254,7 +254,7 @@ t_start = time.perf_counter()
 # Time = []
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
 
-# Read the pressure tensor elements from data file (indices of tensor elements are based on CHARMM output file)
+# Read the pressure tensor elements from data file
 print('\nReading the pressure tensor data file')
 with open(data_file, "r") as file:
     for l in rng(num_steps, pbar):
@@ -305,7 +305,8 @@ if GKorEn == 1:
     Pxxyy = (Pxx - Pyy) / 2
     Pyyzz = (Pyy - Pzz) / 2
 
-    # Calculate the viscosity from Einstein relation by integrating the components of the P tensor
+    # Calculate the viscosity from Einstein relation 
+    # by integrating the components of the P tensor
     timestep = (Time[1] - Time[0]) * 10**(-12)
 
     Pxy_int = integrate.cumtrapz(y=Pxy, dx=timestep, initial=0)
