@@ -13,7 +13,7 @@
 # (or their autocorrelation function) collected from MD simulations.
 #
 # Notice: the pressure tensor file should have space-separated columns 
-# of the following order and units of [atm]:
+# of the following order and units of [atm/bar/Pa]:
 # Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
 #
 # --------------------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def runInParallel(*fns):
 # Show progress-bar
 def rng(r, pb):
     if pb == 1:
-        rng = trange(r)
+        rng = trange(r, ncols=100, desc='Progress')
     else:
         rng = range(r)
     return rng
@@ -71,7 +71,7 @@ def acf(x, pb):
 # Get name of the data file
 def getfile():
     global data_file
-    data_file = input("\nEnter the name of your pressure tensor data file\nthe pressure tensor file should have space-separated columns of the following order and units of (atm)\nPxx, Pyy, Pzz, Pxy, Pxz, Pyz: ").strip()
+    data_file = input("\nEnter the path to the pressure tensor data file\nNote: the pressure tensor file should have space-separated columns (of the order Pxx, Pyy, Pzz, Pxy, Pxz, Pyz) and units of (atm, bar or Pa): ").strip()
     try:
         with open(data_file, "r") as file:
             file.readline()
@@ -79,10 +79,23 @@ def getfile():
         print('\n%s' % error)
         return getfile()
 
+# Get the unit of pressure
+def getunit():
+    global p_unit
+    p_unit = input('\nIn which units are the provided pressure data: Pa[0], Atm[1] or Bar[2]: ').strip()
+    if p_unit.isnumeric():
+        p_unit = int(p_unit)
+        if p_unit != 0 and p_unit != 1 and p_unit != 2:
+            print("Your input is not valid!!")
+            return getunit()
+    else:
+        print("Your input is not valid!!")
+        return getunit()
+
 # Get number of steps to be used for ACF calculation
 def getnumsteps():
     global num_steps
-    num_steps = input('Number of steps to read from pressure tensor file: ').strip()
+    num_steps = input('\nNumber of steps to read from pressure tensor file: ').strip()
     if num_steps.isnumeric():
         num_steps = int(num_steps)
     else:
@@ -92,7 +105,7 @@ def getnumsteps():
 # From which time step to start processing the data
 def getstartstep():
     global start_step
-    start_step = input('From which time step to start processing the data: [0] ').strip()
+    start_step = input('\nFrom which time step to start processing the data: [0] ').strip()
     if start_step.isnumeric():
         start_step = int(start_step)
     else:
@@ -102,7 +115,7 @@ def getstartstep():
 # Get the timestep of the simulation (assuming pressure data is collected in each timestep)
 def gettimestep():
     global timestep
-    timestep = input('Enter the simulation timestep in [ps]: ').strip()
+    timestep = input('\nEnter the physical timestep between the successive pressure data in your file [ps]: ').strip()
     try:
         timestep = float(timestep)
         if timestep < 0:
@@ -114,7 +127,7 @@ def gettimestep():
 # Get the temperature of the MD simulation
 def gettemp():
     global temperature
-    temperature = input('Enter the temperature of your MD simulation in [K]: ').strip()
+    temperature = input('\nEnter the temperature of your MD simulation in [K]: ').strip()
     try:
         temperature = float(temperature)
         if temperature < 0:
@@ -126,7 +139,7 @@ def gettemp():
 # Get the average volume of the simulation box
 def getvolume():
     global volume_avg
-    volume_avg = input('Enter the average volume of your simulation box in [A^3]: ').strip()
+    volume_avg = input('\nEnter the average volume of your simulation box in [A^3]: ').strip()
     try:
         volume_avg = float(volume_avg) * 10**(-30)
         if volume_avg < 0:
@@ -138,7 +151,7 @@ def getvolume():
 # Choose between Green-Kubo and Einstein expression
 def getmethod():
     global GKorEn
-    GKorEn = input('Use Green-Kubo[0] or Einstein[1] expression for viscosity calculation: ').strip()
+    GKorEn = input('\nUse Green-Kubo[0] or Einstein[1] expression for viscosity calculation: ').strip()
     if GKorEn.isnumeric():
         GKorEn = int(GKorEn)
         if GKorEn != 0 and GKorEn != 1:
@@ -152,7 +165,7 @@ def getmethod():
 # choose between different off-diagonal components of the pressure tensor
 def gettype():
     global GKtype
-    GKtype = input('Use only 3 off-diagonal components of the P tensor (Pxy,Pxz,Pyz) [0], include the diagonal elements using (Pxx-Pyy)/2 [1] or 4/3*(Pxx-((Pxx+Pyy+Pzz)/3)) [2]: ').strip()
+    GKtype = input('\nUse only 3 off-diagonal components of the P tensor (Pxy,Pxz,Pyz) [0],\ninclude the diagonal elements using (Pxx-Pyy)/2 [1],\ninclude the diagonal elements using 4/3*(Pxx-((Pxx+Pyy+Pzz)/3)) [2]: ').strip()
     if GKtype.isnumeric():
         GKtype = int(GKtype)
         if GKtype != 0 and GKtype != 1 and GKtype != 2:
@@ -165,7 +178,7 @@ def gettype():
 # Reduce down the data by the given factor
 def getfactor():
     global factor
-    factor = input('Use pressure values from every (n) timesteps for viscosity calculation: [10] ').strip()
+    factor = input('\nUse pressure values from every (n) timesteps for viscosity calculation: [10] ').strip()
     if factor.isnumeric():
         factor = int(factor)
     else:
@@ -175,7 +188,7 @@ def getfactor():
 # Plot the auto correlation functions?
 def acfplot():
     global acf_plot
-    acf_plot = input('Plot the auto correlation functions? Yes[1]/No[0]: ').strip()
+    acf_plot = input('\nPlot the auto correlation functions? Yes[1]/No[0]: ').strip()
     if acf_plot.isnumeric():
         acf_plot = int(acf_plot)
         if acf_plot != 0 and acf_plot != 1:
@@ -188,7 +201,7 @@ def acfplot():
 # Plot the time evolution of the viscosity estimate?
 def viscosityplot():
     global viscosity_plot
-    viscosity_plot = input('Plot the time evolution of the viscosity estimate? Yes[1]/No[0]: ').strip()
+    viscosity_plot = input('\nPlot the time evolution of the viscosity estimate? Yes[1]/No[0]: ').strip()
     if viscosity_plot.isnumeric():
         viscosity_plot = int(viscosity_plot)
         if viscosity_plot != 0 and viscosity_plot != 1:
@@ -201,7 +214,7 @@ def viscosityplot():
 # Save plots as csv files?
 def saveplot():
     global save_plot
-    save_plot = input('Save plots as csv files? Yes[1]/No[0]: ').strip()
+    save_plot = input('\nSave plots as csv files? Yes[1]/No[0]: ').strip()
     if save_plot.isnumeric():
         save_plot = int(save_plot)
         if save_plot != 0 and save_plot != 1:
@@ -214,7 +227,7 @@ def saveplot():
 # Save the time evolution of the viscosity in every n steps
 def getsavestep():
     global save_step
-    save_step = input('Save the time evolution of the viscosity in every n steps: [100] ').strip()
+    save_step = input('\nSave the time evolution of the viscosity in every n steps: [100] ').strip()
     if save_step.isnumeric():
         save_step = int(save_step)
     else:
@@ -224,6 +237,7 @@ def getsavestep():
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Collect some inputs from user
 getfile()
+getunit()
 getnumsteps()
 getstartstep()
 gettimestep()
@@ -239,10 +253,15 @@ saveplot()
 if save_plot == 1:
     getsavestep()
 
-# Show progress bars, 0 = disable (use when running interactively) 
+# Show progress bars, 0 = disable 
 pbar = 1
-# Conversion ratio from atm to Pa
-atm_to_Pa = 101325
+# Conversion ratio from atm(1)/bar(2) to Pa
+if p_unit == 0:
+    conv_ratio = 1
+elif p_unit == 1:
+    conv_ratio = 101325
+elif p_unit == 2:
+    conv_ratio = 100000
 # Calculate the kBT value
 kBT = Boltzmann * temperature
 
@@ -261,12 +280,12 @@ with open(data_file, "r") as file:
         line = file.readline()
         step = list(map(float, line.split()))
         # Time.append(step[0])
-        Pxx.append(step[0]*atm_to_Pa)
-        Pyy.append(step[1]*atm_to_Pa)
-        Pzz.append(step[2]*atm_to_Pa)
-        Pxy.append(step[3]*atm_to_Pa)
-        Pxz.append(step[4]*atm_to_Pa)
-        Pyz.append(step[5]*atm_to_Pa)
+        Pxx.append(step[0]*conv_ratio)
+        Pyy.append(step[1]*conv_ratio)
+        Pzz.append(step[2]*conv_ratio)
+        Pxy.append(step[3]*conv_ratio)
+        Pxz.append(step[4]*conv_ratio)
+        Pyz.append(step[5]*conv_ratio)
 
 # Generate the time array
 total_steps = num_steps - start_step
@@ -331,7 +350,7 @@ if GKorEn == 1:
 
     # Save the evolution of the viscosity in time as a csv file
     if save_plot == 1:
-        time = time[::save_step]
+        Time = Time[::save_step]
         viscosity = viscosity[::save_step]
         df = pd.DataFrame({"time(ps)" : Time[:], "viscosity(Pa.s)" : viscosity[:]})
         df.to_csv("viscosity_Einstein.csv", index=False)
