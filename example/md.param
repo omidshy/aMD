@@ -1,0 +1,7 @@
+
+number of steps in the press.data file: 100,000
+unit of pressure: atm
+timestep: 0.005 ps
+temperature: 363 K
+volume of the simulation box: 143104.58 A^3
+
