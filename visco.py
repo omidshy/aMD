@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from scipy import integrate
 from scipy.constants import Boltzmann
+from scipy.optimize import curve_fit
 from multiprocessing import Process
 from tqdm import trange
 
@@ -56,10 +57,10 @@ def rng(r, pb):
         rng = range(r)
     return rng
 
-# Define ACF function
+# Define ACF
 def acf(x, pb):
-    N = Time.shape[0]
-    size = int(N/2)
+    N = x.shape[0]
+    size = int(N//2)
 
     autocorrelation = np.zeros(size, dtype=float)
     for shift in rng(size, pb):
@@ -67,11 +68,32 @@ def acf(x, pb):
 
     return autocorrelation
 
+# Define ACF using FFT
+def acf_fft(data):
+    N = data.shape[0]
+    lag = N//2
+
+    # Nearest size with power of 2 (for efficiency) to zero-pad the input data
+    size = 2 ** np.ceil(np.log2(2*N - 1)).astype('int')
+
+    # Compute the FFT
+    FFT = np.fft.fft(data, size)
+
+    # Get the power spectrum
+    PWR = FFT.conjugate() * FFT
+
+    # Calculate the autocorrelation from inverse FFT of the power spectrum
+    CORR = np.fft.ifft(PWR)[:N].real
+
+    autocorrelation = CORR / np.arange(N, 0, -1)
+
+    return autocorrelation[:lag]
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Get name of the data file
 def getfile():
     global data_file
-    data_file = input("\nEnter the path to the pressure tensor data file\nNote: the pressure tensor file should have space-separated columns (of the order Pxx, Pyy, Pzz, Pxy, Pxz, Pyz) and units of (atm, bar or Pa): ").strip()
+    data_file = input("\nEnter the path to the pressure tensor data file\nNote: the pressure tensor file should have space-separated columns\n(of the order Pxx, Pyy, Pzz, Pxy, Pxz, Pyz) and units of (atm, bar or Pa): ").strip()
     try:
         with open(data_file, "r") as file:
             file.readline()
@@ -92,7 +114,7 @@ def getunit():
         print("Your input is not valid!!")
         return getunit()
 
-# Get number of steps to be used for ACF calculation
+# Get the number of steps to be read from data file
 def getnumsteps():
     global num_steps
     num_steps = input('\nNumber of steps to read from pressure tensor file: ').strip()
@@ -105,17 +127,17 @@ def getnumsteps():
 # From which time step to start processing the data
 def getstartstep():
     global start_step
-    start_step = input('\nFrom which time step to start processing the data: [0] ').strip()
+    start_step = input('\nFrom which time step start processing the data: [0] ').strip()
     if start_step.isnumeric():
         start_step = int(start_step)
     else:
         print("Your input is not valid!!")
         return getstartstep()
 
-# Get the timestep of the simulation (assuming pressure data is collected in each timestep)
+# Get the timestep of the saved pressure data
 def gettimestep():
     global timestep
-    timestep = input('\nEnter the physical timestep between the successive pressure data in your file [ps]: ').strip()
+    timestep = input('\nEnter the physical timestep between two successive pressure data in your file [ps]: ').strip()
     try:
         timestep = float(timestep)
         if timestep < 0:
@@ -123,6 +145,7 @@ def gettimestep():
             return gettimestep()
     except ValueError:
         print("Your input is not valid!!")
+        return gettimestep()
 
 # Get the temperature of the MD simulation
 def gettemp():
@@ -135,6 +158,7 @@ def gettemp():
             return gettemp()
     except ValueError:
         print("Your input is not valid!!")
+        return gettemp()
 
 # Get the average volume of the simulation box
 def getvolume():
@@ -147,6 +171,7 @@ def getvolume():
             return getvolume()
     except ValueError:
         print("Your input is not valid!!")
+        return getvolume()
 
 # Choose between Green-Kubo and Einstein expression
 def getmethod():
@@ -165,25 +190,15 @@ def getmethod():
 # choose between different off-diagonal components of the pressure tensor
 def gettype():
     global GKtype
-    GKtype = input('\nUse only 3 off-diagonal components of the P tensor (Pxy,Pxz,Pyz) [0],\ninclude the diagonal elements using (Pxx-Pyy)/2 [1],\ninclude the diagonal elements using 4/3*(Pxx-((Pxx+Pyy+Pzz)/3)) [2]: ').strip()
+    GKtype = input('\nUse only 3 off-diagonal components of the P tensor (i.e. Pxy,Pxz,Pyz) [0],\ninclude the diagonal elements using e.g. (Pxx-Pyy)/2 [1]: ').strip()
     if GKtype.isnumeric():
         GKtype = int(GKtype)
-        if GKtype != 0 and GKtype != 1 and GKtype != 2:
+        if GKtype != 0 and GKtype != 1:
             print("Your input is not valid!!")
             return gettype()
     else:
         print("Your input is not valid!!")
         return gettype()
-
-# Reduce down the data by the given factor
-def getfactor():
-    global factor
-    factor = input('\nUse pressure values from every (n) timesteps for viscosity calculation: [10] ').strip()
-    if factor.isnumeric():
-        factor = int(factor)
-    else:
-        print("Your input is not valid!!")
-        return getfactor()
 
 # Plot the auto correlation functions?
 def acfplot():
@@ -211,19 +226,6 @@ def viscosityplot():
         print("Your input is not valid!!")
         return viscosityplot()
 
-# Save plots as csv files?
-def saveplot():
-    global save_plot
-    save_plot = input('\nSave plots as csv files? Yes[1]/No[0]: ').strip()
-    if save_plot.isnumeric():
-        save_plot = int(save_plot)
-        if save_plot != 0 and save_plot != 1:
-            print("Your input is not valid!!")
-            return saveplot()
-    else:
-        print("Your input is not valid!!")
-        return saveplot()
-
 # Save the time evolution of the viscosity in every n steps
 def getsavestep():
     global save_step
@@ -244,17 +246,17 @@ gettimestep()
 gettemp()
 getvolume()
 getmethod()
+
 if GKorEn == 0:
     gettype()
     acfplot()
+
 viscosityplot()
-getfactor()
-saveplot()
-if save_plot == 1:
-    getsavestep()
+getsavestep()
 
 # Show progress bars, 0 = disable 
 pbar = 1
+
 # Conversion ratio from atm(1)/bar(2) to Pa
 if p_unit == 0:
     conv_ratio = 1
@@ -262,6 +264,7 @@ elif p_unit == 1:
     conv_ratio = 101325
 elif p_unit == 2:
     conv_ratio = 100000
+
 # Calculate the kBT value
 kBT = Boltzmann * temperature
 
@@ -270,7 +273,6 @@ kBT = Boltzmann * temperature
 t_start = time.perf_counter()
 
 # Initiate the pressure tensor component lists
-# Time = []
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
 
 # Read the pressure tensor elements from data file
@@ -279,7 +281,6 @@ with open(data_file, "r") as file:
     for l in rng(num_steps, pbar):
         line = file.readline()
         step = list(map(float, line.split()))
-        # Time.append(step[0])
         Pxx.append(step[0]*conv_ratio)
         Pyy.append(step[1]*conv_ratio)
         Pzz.append(step[2]*conv_ratio)
@@ -292,9 +293,7 @@ total_steps = num_steps - start_step
 end_step = total_steps * timestep
 Time = np.linspace(0, end_step, num=total_steps, endpoint=False)
 
-# Convert created lists to numpy arrays starting from given step
-print('\nPreparing pressure tensor arrays')
-# Time = np.array(Time[:num_steps-start_step])
+# Convert created lists to numpy arrays starting from the given step
 Pxx = np.array(Pxx[start_step:])
 Pyy = np.array(Pyy[start_step:])
 Pzz = np.array(Pzz[start_step:])
@@ -302,24 +301,9 @@ Pxy = np.array(Pxy[start_step:])
 Pxz = np.array(Pxz[start_step:])
 Pyz = np.array(Pyz[start_step:])
 
-# Reduce down the data by the factor given
-# 1 uses all of the gathered data, 10 uses one 10th
-# This can be used to speed up getting the autocorrelation function
-if factor > 1:
-    print('\nReducing down the data by the given factor: {}'.format(factor))
-    Time = Time[::factor]
-    Pxx = Pxx[::factor]
-    Pyy = Pyy[::factor]
-    Pzz = Pzz[::factor]
-    Pxy = Pxy[::factor]
-    Pxz = Pxz[::factor]
-    Pyz = Pyz[::factor]
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Viscosity from Einstein relation
 if GKorEn == 1:
-
-    print('\nCalculating the viscosity from Einstein relation')
 
     Pxxyy = (Pxx - Pyy) / 2
     Pyyzz = (Pyy - Pzz) / 2
@@ -337,23 +321,23 @@ if GKorEn == 1:
     en_int = (Pxy_int**2 + Pxz_int**2 + Pyz_int**2 + Pxxyy_int**2 + Pyyzz_int**2) / 5
 
     viscosity = en_int[1:] * ( volume_avg / (2 * kBT * Time[1:] * 10**(-12)) )
-    print('-'*30 + '\n' + 'Viscosity(Einstein): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
+    print('-'*40)
+    print(f"\nViscosity: {round((viscosity[-1] * 1000), 2)} [mPa.s]  (Do not trust this value. You should fit a function to the running integral and take its limit)")
 
     # Plot the evolution of the viscosity in time
     if viscosity_plot == 1:
         pylab.figure()
-        pylab.plot(Time[:], viscosity[:]*1000, label='Viscosity')
+        pylab.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
         pylab.xlabel('Time (ps)')
         pylab.ylabel('Viscosity (cP)')
         pylab.legend()
         pylab.show()
 
     # Save the evolution of the viscosity in time as a csv file
-    if save_plot == 1:
-        Time = Time[::save_step]
-        viscosity = viscosity[::save_step]
-        df = pd.DataFrame({"time(ps)" : Time[:], "viscosity(Pa.s)" : viscosity[:]})
-        df.to_csv("viscosity_Einstein.csv", index=False)
+    Time = Time[::save_step]
+    viscosity = viscosity[::save_step]
+    df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]], "viscosity(Pa.s)" : viscosity[:]})
+    df.to_csv("viscosity_Einstein.csv", index=False)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Viscosity from Green-Kubo relation
@@ -364,67 +348,38 @@ elif GKorEn == 0:
         Pyyzz = (Pyy - Pzz) / 2
         Pxxzz = (Pxx - Pzz) / 2
 
-    elif GKtype == 2:
-        Pxy *= 2
-        Pxz *= 2
-        Pyz *= 2
-        Pxxyz = (4/3) * (Pxx - ((Pxx + Pyy + Pzz) / 3))
-        Pyxyz = (4/3) * (Pyy - ((Pxx + Pyy + Pzz) / 3))
-        Pzxyz = (4/3) * (Pzz - ((Pxx + Pyy + Pzz) / 3))
-
     # Calculate the ACFs
-    # Note that we use max 1/2 the length of the data as correlation time
-    # because beyond that there are not enough available time windows to be accurate
-    print('\nCalculating ACFs of the pressure tensor')
-
     def P1():
-        Pxy_acf = acf(Pxy, pbar)
+        Pxy_acf = acf_fft(Pxy)
         with open("Pxy_acf", "wb") as file:
             np.save(file, Pxy_acf)
 
     def P2():
-        Pxz_acf = acf(Pxz, 0)
+        Pxz_acf = acf_fft(Pxz)
         with open("Pxz_acf", "wb") as file:
             np.save(file, Pxz_acf)
 
     def P3():
-        Pyz_acf = acf(Pyz, 0)
+        Pyz_acf = acf_fft(Pyz)
         with open("Pyz_acf", "wb") as file:
             np.save(file, Pyz_acf)
 
     if GKtype == 1:
 
         def P4():
-            Pxxyy_acf = acf(Pxxyy, 0)
+            Pxxyy_acf = acf_fft(Pxxyy)
             with open("Pxxyy_acf", "wb") as file:
                 np.save(file, Pxxyy_acf)
 
         def P5():
-            Pyyzz_acf = acf(Pyyzz, 0)
+            Pyyzz_acf = acf_fft(Pyyzz)
             with open("Pyyzz_acf", "wb") as file:
                 np.save(file, Pyyzz_acf)
 
         def P6():
-            Pxxzz_acf = acf(Pxxzz, 0)
+            Pxxzz_acf = acf_fft(Pxxzz)
             with open("Pxxzz_acf", "wb") as file:
                 np.save(file, Pxxzz_acf)
-
-    elif GKtype == 2:
-
-        def P4():
-            Pxxyz_acf = acf(Pxxyz, 0)
-            with open("Pxxyz_acf", "wb") as file:
-                np.save(file, Pxxyz_acf)
-
-        def P5():
-            Pyxyz_acf = acf(Pyxyz, 0)
-            with open("Pyxyz_acf", "wb") as file:
-                np.save(file, Pyxyz_acf)
-
-        def P6():
-            Pzxyz_acf = acf(Pzxyz, 0)
-            with open("Pzxyz_acf", "wb") as file:
-                np.save(file, Pzxyz_acf)
 
     if GKtype == 0:
         # Run ACF calculations in parallel
@@ -463,38 +418,12 @@ elif GKorEn == 0:
         with open("Pxxzz_acf", "rb") as file:
             Pxxzz_acf = np.load(file)
 
-    elif GKtype == 2:
-        # Run ACF calculations in parallel
-        runInParallel(P1, P2, P3, P4, P5, P6)
-
-        # Read back the saved numpy arrays from file to an array
-        with open("Pxy_acf", "rb") as file:
-            Pxy_acf = np.load(file)
-
-        with open("Pxz_acf", "rb") as file:
-            Pxz_acf = np.load(file)
-
-        with open("Pyz_acf", "rb") as file:
-            Pyz_acf = np.load(file)
-
-        with open("Pxxyz_acf", "rb") as file:
-            Pxxyz_acf = np.load(file)
-
-        with open("Pyxyz_acf", "rb") as file:
-            Pyxyz_acf = np.load(file)
-
-        with open("Pzxyz_acf", "rb") as file:
-            Pzxyz_acf = np.load(file)
-
     # Calculate the average of ACFs
     if GKtype == 0:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf) / 3
 
     elif GKtype == 1:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyy_acf + Pyyzz_acf + Pxxzz_acf) / 6
-
-    elif GKtype == 2:
-        avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyz_acf + Pyxyz_acf + Pzxyz_acf) / 10
 
     # Plot the normalized average ACF
     if acf_plot == 1:
@@ -507,16 +436,16 @@ elif GKorEn == 0:
         pylab.show()
 
     # Save the normalized average ACF as csv file
-    if save_plot == 1:
-        norm_avg_acf = avg_acf / avg_acf[0]
-        df = pd.DataFrame({"time (ps)" : Time[:avg_acf.shape[0]], "ACF" : norm_avg_acf[:]})
-        df.to_csv("avg_acf.csv", index=False)
+    norm_avg_acf = avg_acf / avg_acf[0]
+    df = pd.DataFrame({"time (ps)" : Time[:avg_acf.shape[0]], "ACF" : norm_avg_acf[:]})
+    df.to_csv("avg_acf.csv", index=False)
 
     # Integrate the average ACF to get the viscosity using Green-Kubo relation
     timestep = (Time[1] - Time[0]) * 10**(-12)
     gk_int = integrate.cumtrapz(y=avg_acf, dx=timestep, initial=0)
     viscosity = gk_int * (volume_avg / kBT)
-    print('-'*40 + '\n' + 'Viscosity(Green-Kubo): ' + str(viscosity[-1] * 1000) + ' (mPa.s)')
+    print('-'*40)
+    print(f"\nViscosity: {round((viscosity[-1] * 1000), 2)} [mPa.s]  (Do not trust this value. You should fit a function to the running integral and take its limit)")
 
     # Plot the time evolution of the viscosity estimate
     if viscosity_plot == 1:
@@ -528,11 +457,10 @@ elif GKorEn == 0:
         pylab.show()
 
     # Save running integral of the viscosity as csv file
-    if save_plot == 1:
-        Time = Time[::save_step]
-        viscosity = viscosity[::save_step]
-        df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]], "viscosity(Pa.s)" : viscosity[:]})
-        df.to_csv("viscosity_GK.csv", index=False)
+    Time = Time[::save_step]
+    viscosity = viscosity[::save_step]
+    df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]], "viscosity(Pa.s)" : viscosity[:]})
+    df.to_csv("viscosity_GK.csv", index=False)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Remove extra files
@@ -545,14 +473,9 @@ elif GKorEn == 0:
         os.remove('Pxxzz_acf')
         os.remove('Pyyzz_acf')
 
-    elif GKtype == 2:
-        os.remove('Pxxyz_acf')
-        os.remove('Pyxyz_acf')
-        os.remove('Pzxyz_acf')
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Set the end time and print the execution time
 t_end = time.perf_counter()
 wall_time = convert_time(t_end - t_start)
 print(40*'-')
-print("wall-time: " + str(wall_time))
+print("wall-time: " + str(wall_time) + "\n")
