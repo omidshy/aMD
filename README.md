@@ -1,13 +1,14 @@
 
 # Python codes for MD simulation analysis
 
-This is the repository for a set of programs to calculate physical properties from molecular dynamics (MD) simulation developed by Omid Shayestehpour.
+This is the repository for a set of programs to calculate physical properties from molecular dynamics (MD) simulation.
 
 ## visco.py
 
-It calculates the viscosity from the pressure fluctuations data from an MD simulation using the Einstein and Green-Kubo expressions.
-The viscosity is computed from the integral of the elements of the pressure tensor (or their autocorrelation function).
+Calculates the viscosity from the pressure fluctuations data from an NVT MD simulation using the Einstein and Green-Kubo expressions.
+The viscosity is computed from the integral of the elements of the pressure tensor or their autocorrelation function.
 
-Usage: `python visco.py`
 
-An example data file 'press.data' is available in example directory. The required parameters of the MD simulation can be found in 'md.param' file.
+Usage: `python visco.py -h`
+
+An example data file 'press.data' is available in example directory. The required values to run the example can be found in 'md.param' file.
