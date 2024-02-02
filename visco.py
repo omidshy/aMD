@@ -10,7 +10,7 @@
 # 
 # Calculation of viscosity using the Einstein or Green-Kubo expressions.
 # Viscosity is computed from the integral of the elements of the pressure tensor
-# (or their autocorrelation function) collected from MD simulations.
+# (or their auto-correlation function) collected from NVT MD simulations.
 #
 # Notice: the pressure tensor file should have space-separated columns 
 # of the following order and units of [atm/bar/Pa]:
@@ -53,7 +53,7 @@ def acf_fft(data):
     # Get the power spectrum
     PWR = FFT.conjugate() * FFT
 
-    # Calculate the autocorrelation from inverse FFT of the power spectrum
+    # Calculate the auto-correlation from inverse FFT of the power spectrum
     CORR = np.fft.ifft(PWR)[:N].real
 
     autocorrelation = CORR / np.arange(N, 0, -1)
@@ -85,10 +85,12 @@ def parser():
                         help='the volume of your simulation box in [A^3]')
 
     parser.add_argument('-d', '--diag', action='store_false',  
-                        help='also include the diagonal elements of the pressure tensor for viscosity calculation. default = True')
+                        help='also include the diagonal elements of the pressure tensor for viscosity \
+                        calculation using Green-Kubo approach. default = True')
 
     parser.add_argument('-p', '--plot', action='store_true',  
-                        help='show the plots of auto correlation functions and running integral of the viscosity. default = False')
+                        help='show the plots of auto-correlation functions and \
+                        running integral of the viscosity. default = False')
 
     parser.add_argument('-e', '--each', type=int, default=100, 
                         help='the steps interval to save the time evolution of the viscosity. default = 100')
@@ -106,7 +108,7 @@ def parser():
 
 args = parser()
 
-# Conversion ratio from atm(1)/bar(2) to Pa
+# Conversion ratio from atm/bar to Pa
 if args.unit == 'Pa':
     conv_ratio = 1
 elif args.unit == 'atm':
@@ -248,6 +250,6 @@ if args.plot:
     pylab.legend()
     pylab.show()
 
-# Save running integral of the viscosity as csv file
+# Save running integral of the viscosity as a csv file
 df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]:args.each], "viscosity(Pa.s)" : viscosity[::args.each]})
 df.to_csv("viscosity_GK.csv", index=False)
