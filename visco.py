@@ -19,9 +19,9 @@
 # --------------------------------------------------------------------------------------------
 
 import sys, argparse
-import pylab
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot
 from scipy import integrate
 from scipy.constants import Boltzmann
 from scipy.optimize import curve_fit
@@ -29,23 +29,23 @@ from tqdm import trange
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Define ACF
-def acf(data):
-    N = data.shape[0]
-    size = N//2
+def acf_(data):
+    steps = data.shape[0]
+    size = steps // 2
 
     autocorrelation = np.zeros(size, dtype=float)
     for shift in trange(size, ncols=100, desc='Progress'):
-            autocorrelation[shift] = np.mean( (data[:N-shift]) * (data[shift:]) )
+            autocorrelation[shift] = np.mean( (data[:steps-shift]) * (data[shift:]) )
 
     return autocorrelation
 
 # Define ACF using FFT
-def acf_fft(data):
-    N = data.shape[0]
-    lag = N//2
+def acf(data):
+    steps = data.shape[0]
+    lag = steps // 2
 
     # Nearest size with power of 2 (for efficiency) to zero-pad the input data
-    size = 2 ** np.ceil(np.log2(2*N - 1)).astype('int')
+    size = 2 ** np.ceil(np.log2(2 * steps - 1)).astype('int')
 
     # Compute the FFT
     FFT = np.fft.fft(data, size)
@@ -54,9 +54,9 @@ def acf_fft(data):
     PWR = FFT.conjugate() * FFT
 
     # Calculate the auto-correlation from inverse FFT of the power spectrum
-    CORR = np.fft.ifft(PWR)[:N].real
+    COR = np.fft.ifft(PWR)[:steps].real
 
-    autocorrelation = CORR / np.arange(N, 0, -1)
+    autocorrelation = COR / np.arange(steps, 0, -1)
 
     return autocorrelation[:lag]
 
@@ -180,12 +180,12 @@ print(f"\nViscosity (Einstein): {round((viscosity[-1] * 1000), 2)} [mPa.s]")
 
 # Plot the running integral of viscosity
 if args.plot:
-    pylab.figure()
-    pylab.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
-    pylab.xlabel('Time (ps)')
-    pylab.ylabel('Viscosity (mPa.s)')
-    pylab.legend()
-    pylab.show()
+    pyplot.figure()
+    pyplot.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
+    pyplot.xlabel('Time (ps)')
+    pyplot.ylabel('Viscosity (mPa.s)')
+    pyplot.legend()
+    pyplot.show()
 
 # Save the running integral of viscosity as a csv file
 df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]:args.each], "viscosity(Pa.s)" : viscosity[::args.each]})
@@ -195,9 +195,9 @@ df.to_csv("viscosity_Einstein.csv", index=False)
 # Viscosity from Green-Kubo relation
 def green_kubo():
     # Calculate the ACFs
-    Pxy_acf = acf_fft(Pxy)
-    Pxz_acf = acf_fft(Pxz)
-    Pyz_acf = acf_fft(Pyz)
+    Pxy_acf = acf(Pxy)
+    Pxz_acf = acf(Pxz)
+    Pyz_acf = acf(Pyz)
 
     # Calculate the shear components of the pressure tensor and their ACF
     if args.diag:
@@ -205,9 +205,9 @@ def green_kubo():
         Pyyzz = (Pyy - Pzz) / 2
         Pxxzz = (Pxx - Pzz) / 2
 
-        Pxxyy_acf = acf_fft(Pxxyy)
-        Pyyzz_acf = acf_fft(Pyyzz)
-        Pxxzz_acf = acf_fft(Pxxzz)
+        Pxxyy_acf = acf(Pxxyy)
+        Pyyzz_acf = acf(Pyyzz)
+        Pxxzz_acf = acf(Pxxzz)
 
     if args.diag:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyy_acf + Pyyzz_acf + Pxxzz_acf) / 6
@@ -226,12 +226,12 @@ avg_acf, viscosity = green_kubo()
 # Plot the normalized average ACF
 if args.plot:
     norm_avg_acf = avg_acf / avg_acf[0]
-    pylab.figure()
-    pylab.plot(Time[:avg_acf.shape[0]], norm_avg_acf[:], label='Average')
-    pylab.xlabel('Time (ps)')
-    pylab.ylabel('ACF')
-    pylab.legend()
-    pylab.show()
+    pyplot.figure()
+    pyplot.plot(Time[:avg_acf.shape[0]], norm_avg_acf[:], label='Average')
+    pyplot.xlabel('Time (ps)')
+    pyplot.ylabel('ACF')
+    pyplot.legend()
+    pyplot.show()
 
 # Save the normalized average ACF as a csv file
 norm_avg_acf = avg_acf / avg_acf[0]
@@ -243,12 +243,12 @@ print("Note: do not trust these values! You should fit an exponential function t
 
 # Plot the time evolution of the viscosity estimate
 if args.plot:
-    pylab.figure()
-    pylab.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
-    pylab.xlabel('Time (ps)')
-    pylab.ylabel('Viscosity (mPa.s)')
-    pylab.legend()
-    pylab.show()
+    pyplot.figure()
+    pyplot.plot(Time[:viscosity.shape[0]], viscosity[:]*1000, label='Viscosity')
+    pyplot.xlabel('Time (ps)')
+    pyplot.ylabel('Viscosity (mPa.s)')
+    pyplot.legend()
+    pyplot.show()
 
 # Save running integral of the viscosity as a csv file
 df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]:args.each], "viscosity(Pa.s)" : viscosity[::args.each]})
