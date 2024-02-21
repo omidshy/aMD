@@ -19,9 +19,8 @@ from scipy import integrate
 from scipy.optimize import curve_fit
 from tqdm import trange
 
-def vacf(velocities):
+def acf(velocities):
     # define VACF using FFT
-    
     particles = velocities.shape[0]
     steps = velocities.shape[2]
     lag = steps // 3
@@ -55,7 +54,6 @@ def vacf(velocities):
 
 def diffusion(vacf, time, timestep):
     # integrate the VACF and calculate the self-diffusion coefficient from Green-Kubo relation
-
     timestep = timestep * 10**(-12)
     integral = integrate.cumtrapz(y=vacf/3, dx=timestep, initial=0)
 
@@ -74,33 +72,42 @@ def diffusion(vacf, time, timestep):
     Rsqrd = 1 - (ssRes / ssTot)
 
     # save the running integral of VACF and the fitted curve as CSV files
-    df = pd.DataFrame({"time (ps)" : time[:integral.shape[0]], "self-diffusion coefficient (m^2/s)" : integral[:]})
+    df = pd.DataFrame({"time [ps]" : time[:integral.shape[0]]})
+    df['self-diffusion coefficient [m^2/s]'] = integral[:]
+    df['fit'] = func(time[:integral.shape[0]], *opt)
     df.to_csv("sd.csv", index=False)
-    df = pd.DataFrame({"time (ps)" : time[:integral.shape[0]], "self-diffusion coefficient (m^2/s)" : func(time[:integral.shape[0]], *opt)})
-    df.to_csv("fit.csv", index=False)
 
     # save fitting results (i.e. self-diffusion coefficients) to a file
     with open('sd.out', 'w') as out:
         out.write('exponential fit: ' + '\n')
-        out.write('  D(t) = %e + %e * exp(-t * %e)   (units: [D] = m^2/s, [t] = s)' % tuple(opt) + '\n')
+        out.write('  D(t) = %e + %e * exp(-t * %e) (units: D = [m^2/s], t = [s])' % tuple(opt) + '\n')
         out.write('  R^2 = %f   (correlation coefficient)' % Rsqrd + '\n\n')
-        out.write('Diffusion coefficient = %f pm^2/ps  = %e m^2/s' % (opt[0]*(10**12), opt[0]) + '\n\n')
+        out.write('Diffusion coefficient = %f pm^2/ps  = %e m^2/s' % (opt[0]*(10**12), opt[0]) + '\n')
 
-    return opt[0]
+    return integral, opt, func
 
 def save_vacf(vacf, time):
-    # save the VACF (and normalized VACF) as a CSV file
-    norm_vacf = vacf / vacf[0]
-    df = pd.DataFrame({"time (ps)" : time[:vacf.shape[0]], "VACF" : vacf[:], "normalized VACF" : norm_vacf[:]})
+    # save the VACF as a CSV file
+    df = pd.DataFrame({"time [ps]" : time[:vacf.shape[0]], "VACF" : vacf/vacf[0]})
     df.to_csv("vacf.csv", index=False)
 
 def plot_vacf(vacf, time):
-    # plot the normalized VACF
-    norm_vacf = vacf / vacf[0]
-    pyplot.figure()
-    pyplot.plot(time[:vacf.shape[0]], norm_vacf[:], label='vacf')
-    pyplot.xlabel('time (ps)')
-    pyplot.ylabel('VACF')
+    # plot the VACF
+    pyplot.figure(figsize=(10,5))
+    pyplot.plot(time[:vacf.shape[0]], vacf/vacf[0], label='vacf')
+    pyplot.xlabel('time [ps]')
+    pyplot.ylabel('⟨v(0).v(t)⟩')
+    pyplot.legend()
+    pyplot.show()
+
+def plot_diffusion(integral, opt, func, time):
+    # plot the running integral of VACF and fitted curve
+    time = time[:integral.shape[0]]
+    pyplot.figure(figsize=(10,5))
+    pyplot.plot(time, integral, label='self-diffusion')
+    pyplot.plot(time, func(time, *opt), label='fit', linestyle='dashed')
+    pyplot.xlabel('time [ps]')
+    pyplot.ylabel('D [m^2/s]')
     pyplot.legend()
     pyplot.show()
 
@@ -109,26 +116,29 @@ def plot_vacf(vacf, time):
 provide the particle velocity vectors as a NumPy array of shape (number of particles, 3, number of steps).
 note: shape of the axis=1 is (3) for 3 components of the velocity vector [vx vy vz].
 note: velocities should be in [m/s].
-replace the random data bellow with your actual data.
+replace the example data bellow with your own data.
 '''
-velocities = np.random.normal(0, 0.1, size=(100, 3, 1000))
+velocities = np.load('example/velocities')
 
 # the physical timestep between successive steps in your velocities array in [ps]
 timestep = 0.01
 
 # we create a time array from timestep and number of steps
 num_steps = velocities.shape[2]
-time = np.linspace(0, num_steps*timestep, num=num_steps, endpoint=False)
+time = np.linspace(0, num_steps*timestep, num=num_steps, dtype=np.float32, endpoint=False)
 
 # we compute VACF
-myvacf = vacf(velocities)
+myvacf = acf(velocities)
 
 # we compute self-diffusion coefficient
-sd = diffusion(myvacf, time, timestep)
-print(f'\ndiffusion coefficient = {sd*(10**12):.6f} pm^2/ps  = {sd:.4e} m^2/s')
+integral, opt, func = diffusion(myvacf, time, timestep)
+print(f'diffusion coefficient = {opt[0]*(10**12):.6f} pm^2/ps  = {opt[0]:.4e} m^2/s')
 
 # we plot the VACF
 plot_vacf(myvacf, time)
+
+# we plot the running integral of VACF and fitted curve
+plot_diffusion(integral, opt, func, time)
 
 # we save the VACF
 save_vacf(myvacf, time)
