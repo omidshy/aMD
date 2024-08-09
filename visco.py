@@ -161,12 +161,12 @@ def einstein():
     '''
     timestep = args.timestep * 10**(-12)
 
-    Pxy_int = integrate.cumtrapz(y=Pxy, dx=timestep, initial=0)
-    Pxz_int = integrate.cumtrapz(y=Pxz, dx=timestep, initial=0)
-    Pyz_int = integrate.cumtrapz(y=Pyz, dx=timestep, initial=0)
+    Pxy_int = integrate.cumulative_trapezoid(y=Pxy, dx=timestep, initial=0)
+    Pxz_int = integrate.cumulative_trapezoid(y=Pxz, dx=timestep, initial=0)
+    Pyz_int = integrate.cumulative_trapezoid(y=Pyz, dx=timestep, initial=0)
 
-    Pxxyy_int = integrate.cumtrapz(y=Pxxyy, dx=timestep, initial=0)
-    Pyyzz_int = integrate.cumtrapz(y=Pyyzz, dx=timestep, initial=0)
+    Pxxyy_int = integrate.cumulative_trapezoid(y=Pxxyy, dx=timestep, initial=0)
+    Pyyzz_int = integrate.cumulative_trapezoid(y=Pyyzz, dx=timestep, initial=0)
 
     integral = (Pxy_int**2 + Pxz_int**2 + Pyz_int**2 + Pxxyy_int**2 + Pyyzz_int**2) / 5
 
@@ -216,7 +216,7 @@ def green_kubo():
 
     # Integrate the average ACF to get the viscosity
     timestep = args.timestep * 10**(-12)
-    integral = integrate.cumtrapz(y=avg_acf, dx=timestep, initial=0)
+    integral = integrate.cumulative_trapezoid(y=avg_acf, dx=timestep, initial=0)
     viscosity = integral * (args.volume * 10**(-30) / kBT)
 
     return avg_acf, viscosity
