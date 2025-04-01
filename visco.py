@@ -1,22 +1,19 @@
-# --------------------------------------------------------------------------------------------
-#
-# visco.py is a code for calculating viscosity from molecular dynamics (MD) simulations.
-# Copyright (C) 2021 Omid Shayestehpour
-#
-# This program is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation, either version 3 of the License, or (at your option) any
-# later version.
-# 
-# Calculation of viscosity using the Einstein or Green-Kubo expressions.
-# Viscosity is computed from the integral of the elements of the pressure tensor
-# (or their auto-correlation function) collected from NVT MD simulations.
-#
-# Notice: the pressure tensor file should have space-separated columns 
-# of the following order and units of [atm/bar/Pa]:
-# Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
-#
-# --------------------------------------------------------------------------------------------
+#!/usr/bin/env python
+
+''' ----------------------------------------------------------------------------------------
+visco.py is a code for calculating viscosity from molecular dynamics (MD) simulations.
+
+Open-source free software under GNU GPL v3
+Copyright (C) 2022-2025 Omid Shayestehpour
+
+Calculation of viscosity using the Einstein or Green-Kubo expressions.  
+Viscosity is determined from the integral of the pressure tensor elements  
+or their autocorrelation function, obtained from NVT MD simulations.
+
+Notice: the pressure tensor file should have space-separated columns 
+of the following order and units of [atm/bar/Pa]:
+Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
+---------------------------------------------------------------------------------------- '''
 
 import sys, argparse
 import numpy as np
@@ -27,7 +24,7 @@ from scipy.constants import Boltzmann
 from scipy.optimize import curve_fit
 from tqdm import trange
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --------------------------------------------------------
 # Define ACF
 def acf_(data):
     steps = data.shape[0]
@@ -60,7 +57,7 @@ def acf(data):
 
     return autocorrelation[:lag]
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --------------------------------------------------------
 def parser():
     parser = argparse.ArgumentParser(prog="visco.py", description='Calculation of viscosity from (NVT) molecular dynamics simulations.')
 
@@ -119,7 +116,7 @@ elif args.unit == 'bar':
 # Calculate the kBT value
 kBT = Boltzmann * args.temperature
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --------------------------------------------------------
 # Initiate the pressure tensor component lists
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
 
@@ -148,7 +145,7 @@ Pyz = np.array(Pyz)
 end_step = args.steps * args.timestep
 Time = np.linspace(0, end_step, num=args.steps, endpoint=False)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --------------------------------------------------------
 # Viscosity from Einstein relation
 def einstein():
 
@@ -191,7 +188,7 @@ if args.plot:
 df = pd.DataFrame({"time(ps)" : Time[:viscosity.shape[0]:args.each], "viscosity(Pa.s)" : viscosity[::args.each]})
 df.to_csv("viscosity_Einstein.csv", index=False)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# --------------------------------------------------------
 # Viscosity from Green-Kubo relation
 def green_kubo():
     # Calculate the ACFs

@@ -6,7 +6,7 @@ dynamics (MD) simulations. The self-diffusion coefficients are computed from
 velocity auto-correlation functions (VACF) using the Green-Kubo expression.
 
 Open-source free software under GNU GPL v3
-Copyright (C) 2022-2024 Omid Shayestehpour
+Copyright (C) 2022-2025 Omid Shayestehpour
 
 Please cite: J. Phys. Chem. B 2022, 126, 18, 3439–3449. (DOI 10.1021/acs.jpcb.1c10671)
 ---------------------------------------------------------------------------------------- '''
@@ -23,7 +23,7 @@ def acf(velocities):
     # define VACF using FFT
     particles = velocities.shape[0]
     steps = velocities.shape[2]
-    lag = steps // 3
+    lag = steps * 0.3
 
     # nearest size with power of 2 (for efficiency) to zero-pad the input data
     size = 2 ** np.ceil(np.log2(2*steps - 1)).astype('int')
