@@ -6,8 +6,8 @@ visco.py is a code for calculating viscosity from molecular dynamics (MD) simula
 Open-source free software under GNU GPL v3
 Copyright (C) 2022-2025 Omid Shayestehpour
 
-Calculation of viscosity using the Einstein or Green-Kubo expressions.  
-Viscosity is determined from the integral of the pressure tensor elements  
+Calculation of viscosity using the Einstein and the Green-Kubo expressions.
+Viscosity is computed from the integral of the pressure tensor elements
 or their autocorrelation function, obtained from NVT MD simulations.
 
 Notice: the pressure tensor file should have space-separated columns 
@@ -21,7 +21,6 @@ import pandas as pd
 from matplotlib import pyplot
 from scipy import integrate
 from scipy.constants import Boltzmann
-from scipy.optimize import curve_fit
 from tqdm import trange
 
 # --------------------------------------------------------
@@ -32,7 +31,7 @@ unit_conversion_ratios = {
     'bar': 100000,
 }
 
-# Parses command-line arguments
+# Parse command-line arguments
 def parse_arguments():
 
     parser = argparse.ArgumentParser(
@@ -139,18 +138,21 @@ def acf(data):
 
     return autocorrelation[:lag]
 
-# Viscosity from Einstein relation
-def einstein(Pxx, Pyy, Pzz, Pxy, Pxz, Pyz, time_array, timestep, volume, temperature):
+# Viscosity from the Einstein relation
+def einstein(P, time_array, timestep, volume, temperature):
     '''
     Calculate the viscosity from the Einstein relation
-    by integrating the components of the pressure tensor
-    '''
-    Pxxyy = (Pxx - Pyy) / 2
-    Pyyzz = (Pyy - Pzz) / 2
+    by integrating the components of the pressure tensor.
 
-    Pxy_int = integrate.cumulative_trapezoid(y=Pxy, dx=timestep, initial=0)
-    Pxz_int = integrate.cumulative_trapezoid(y=Pxz, dx=timestep, initial=0)
-    Pyz_int = integrate.cumulative_trapezoid(y=Pyz, dx=timestep, initial=0)
+    P components:
+    [0]: Pxx, [1]: Pyy, [2]: Pzz, [3]: Pxy, [4]: Pxz, [5]: Pyz
+    '''
+    Pxxyy = (P[0] - P[1]) / 2
+    Pyyzz = (P[1] - P[2]) / 2
+
+    Pxy_int = integrate.cumulative_trapezoid(y=P[3], dx=timestep, initial=0)
+    Pxz_int = integrate.cumulative_trapezoid(y=P[4], dx=timestep, initial=0)
+    Pyz_int = integrate.cumulative_trapezoid(y=P[5], dx=timestep, initial=0)
 
     Pxxyy_int = integrate.cumulative_trapezoid(y=Pxxyy, dx=timestep, initial=0)
     Pyyzz_int = integrate.cumulative_trapezoid(y=Pyyzz, dx=timestep, initial=0)
@@ -161,24 +163,30 @@ def einstein(Pxx, Pyy, Pzz, Pxy, Pxz, Pyz, time_array, timestep, volume, tempera
 
     return viscosity
 
-# Viscosity from Green-Kubo relation
-def green_kubo(Pxx, Pyy, Pzz, Pxy, Pxz, Pyz, timestep, volume, temperature, use_diag):
-    # Calculate the ACFs
-    Pxy_acf = acf(Pxy)
-    Pxz_acf = acf(Pxz)
-    Pyz_acf = acf(Pyz)
+# Viscosity from the Green-Kubo relation
+def green_kubo(P, timestep, volume, temperature, use_diag):
+    '''
+    Calculate the viscosity from the Green-Kubo relation
+    by integrating the autocorrelation of components of the pressure tensor.
+
+    P components:
+    [0]: Pxx, [1]: Pyy, [2]: Pzz, [3]: Pxy, [4]: Pxz, [5]: Pyz
+    '''
+    # Calculate ACFs of off-diagonal components
+    Pxy_acf = acf(P[3])
+    Pxz_acf = acf(P[4])
+    Pyz_acf = acf(P[5])
 
     # Calculate the shear components of the pressure tensor and their ACF
     if use_diag:
-        Pxxyy = (Pxx - Pyy) / 2
-        Pyyzz = (Pyy - Pzz) / 2
-        Pxxzz = (Pxx - Pzz) / 2
+        Pxxyy = (P[0] - P[1]) / 2
+        Pyyzz = (P[1] - P[2]) / 2
+        Pxxzz = (P[0] - P[2]) / 2
 
         Pxxyy_acf = acf(Pxxyy)
         Pyyzz_acf = acf(Pyyzz)
         Pxxzz_acf = acf(Pxxzz)
 
-    if use_diag:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf + Pxxyy_acf + Pyyzz_acf + Pxxzz_acf) / 6
     else:
         avg_acf = (Pxy_acf + Pxz_acf + Pyz_acf) / 3
@@ -205,7 +213,7 @@ if __name__ == "__main__":
     print(f"Generate plots: {args.plot}")
     print(f"Save interval: {args.each} steps")
 
-    # Get the conversion ratio using the dictionary lookup
+    # Get the conversion ratio
     conv_ratio = unit_conversion_ratios[args.unit]
 
     # Generate a time array
@@ -215,38 +223,21 @@ if __name__ == "__main__":
     # Convert the timestep to [s]
     timestep = args.timestep * 10**(-12)
 
-    # Initiate the pressure tensor component lists
-    Pxx, Pyy, Pzz, Pxy, Pxz, Pyz = [], [], [], [], [], []
+    # Initiate the pressure tensor array
+    pres_tensor = np.zeros((6, args.steps), dtype=float)
 
     # Read the pressure tensor elements from data file
     print('\nReading the pressure tensor data file')
     with args.datafile as file:
-        for _ in trange(args.steps, ncols=100, desc='Progress'):
+        for i in trange(args.steps, ncols=100, desc='Progress'):
             line = file.readline()
             step = list(map(float, line.split()))
-            Pxx.append(step[0]*conv_ratio)
-            Pyy.append(step[1]*conv_ratio)
-            Pzz.append(step[2]*conv_ratio)
-            Pxy.append(step[3]*conv_ratio)
-            Pxz.append(step[4]*conv_ratio)
-            Pyz.append(step[5]*conv_ratio)
-
-    # Convert lists to numpy arrays
-    Pxx = np.array(Pxx)
-    Pyy = np.array(Pyy)
-    Pzz = np.array(Pzz)
-    Pxy = np.array(Pxy)
-    Pxz = np.array(Pxz)
-    Pyz = np.array(Pyz)
+            step = [comp * conv_ratio for comp in step]
+            pres_tensor[:, i] = step
 
     # ------------------------------------
     viscosity = einstein(
-        Pxx,
-        Pyy,
-        Pzz,
-        Pxy,
-        Pxz,
-        Pyz,
+        pres_tensor,
         time_array,
         timestep,
         args.volume,
@@ -276,12 +267,7 @@ if __name__ == "__main__":
 
     # ------------------------------------
     avg_acf, viscosity = green_kubo(
-        Pxx,
-        Pyy,
-        Pzz,
-        Pxy,
-        Pxz,
-        Pyz,
+        pres_tensor,
         timestep,
         args.volume,
         args.temperature,

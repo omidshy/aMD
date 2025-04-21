@@ -19,11 +19,12 @@ from scipy import integrate
 from scipy.optimize import curve_fit
 from tqdm import trange
 
+# --------------------------------------------------------
+# Define VACF using FFT
 def acf(velocities):
-    # define VACF using FFT
     particles = velocities.shape[0]
     steps = velocities.shape[2]
-    lag = steps * 0.3
+    lag = steps // 3
 
     # nearest size with power of 2 (for efficiency) to zero-pad the input data
     size = 2 ** np.ceil(np.log2(2*steps - 1)).astype('int')
@@ -52,8 +53,8 @@ def acf(velocities):
 
     return np.mean(vacf, axis=0)
 
+# Integrate the VACF and calculate the self-diffusion coefficient using the Green-Kubo relation
 def diffusion(vacf, time, timestep):
-    # integrate the VACF and calculate the self-diffusion coefficient from Green-Kubo relation
     timestep = timestep * 10**(-12)
     integral = integrate.cumtrapz(y=vacf/3, dx=timestep, initial=0)
 
@@ -86,13 +87,13 @@ def diffusion(vacf, time, timestep):
 
     return integral, opt, func
 
+# Save the VACF as a CSV file
 def save_vacf(vacf, time):
-    # save the VACF as a CSV file
     df = pd.DataFrame({"time [ps]" : time[:vacf.shape[0]], "VACF" : vacf/vacf[0]})
     df.to_csv("vacf.csv", index=False)
 
+# Plot the VACF
 def plot_vacf(vacf, time):
-    # plot the VACF
     pyplot.figure(figsize=(10,5))
     pyplot.plot(time[:vacf.shape[0]], vacf/vacf[0], label='vacf')
     pyplot.xlabel('time [ps]')
@@ -100,8 +101,8 @@ def plot_vacf(vacf, time):
     pyplot.legend()
     pyplot.show()
 
+# Plot the running integral of VACF and fitted curve
 def plot_diffusion(integral, opt, func, time):
-    # plot the running integral of VACF and fitted curve
     time = time[:integral.shape[0]]
     pyplot.figure(figsize=(10,5))
     pyplot.plot(time, integral, label='self-diffusion')
@@ -112,33 +113,34 @@ def plot_diffusion(integral, opt, func, time):
     pyplot.show()
 
 # -----------------------------------------------------
-'''
-provide the particle velocity vectors as a NumPy array of shape (number of particles, 3, number of steps).
-note: shape of the axis=1 is (3) for 3 components of the velocity vector [vx vy vz].
-note: velocities should be in [m/s].
-replace the example data bellow with your own data.
-'''
-velocities = np.load('example/velocities')
+if __name__ == "__main__":
+    '''
+    Provide the particle velocity vectors as a NumPy array of shape (number of particles, 3, number of steps).
+    Note: shape of the axis=1 is (3) for 3 components of the velocity vector [vx vy vz].
+    Note: velocities should be in [m/s].
+    Replace the example data bellow with your own data.
+    '''
+    velocities = np.load('example/velocities')
 
-# the physical timestep between successive steps in your velocities array in [ps]
-timestep = 0.01
+    # The physical timestep between successive steps in your velocities array in [ps]
+    timestep = 0.01
 
-# we create a time array from timestep and number of steps
-num_steps = velocities.shape[2]
-time = np.linspace(0, num_steps*timestep, num=num_steps, dtype=np.float32, endpoint=False)
+    # Create a time array from timestep and number of steps
+    num_steps = velocities.shape[2]
+    time = np.linspace(0, num_steps*timestep, num=num_steps, dtype=np.float32, endpoint=False)
 
-# we compute VACF
-myvacf = acf(velocities)
+    # Compute VACF
+    myvacf = acf(velocities)
 
-# we compute self-diffusion coefficient
-integral, opt, func = diffusion(myvacf, time, timestep)
-print(f'diffusion coefficient = {opt[0]*(10**12):.6f} pm^2/ps  = {opt[0]:.4e} m^2/s')
+    # Compute self-diffusion coefficient
+    integral, opt, func = diffusion(myvacf, time, timestep)
+    print(f'diffusion coefficient = {opt[0]*(10**12):.6f} pm^2/ps  = {opt[0]:.4e} m^2/s')
 
-# we plot the VACF
-plot_vacf(myvacf, time)
+    # Plot the VACF
+    plot_vacf(myvacf, time)
 
-# we plot the running integral of VACF and fitted curve
-plot_diffusion(integral, opt, func, time)
+    # Plot the running integral of VACF and fitted curve
+    plot_diffusion(integral, opt, func, time)
 
-# we save the VACF
-save_vacf(myvacf, time)
+    # Save the VACF
+    save_vacf(myvacf, time)
