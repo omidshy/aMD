@@ -14,13 +14,13 @@ function over time following the Green--Kubo approach
 
 $$
 \eta = \frac{V}{k_B T} \int_0^\infty \left\langle P_{\alpha \beta} \left( t_0 \right)
-\cdot P_{\alpha \beta} \left( t \right) \right\rangle_{t} dt
+\cdot P_{\alpha \beta} \left( t \right) \right\rangle dt
 $$
 
 or the Einstein approach
 
 $$
-\eta = \lim{t \to \infty} \frac{V}{2 t k_B T}
+\eta = \lim_{t \to \infty} \frac{V}{2 t k_B T}
 \left\langle \left( \int_0^\infty P_{\alpha \beta}(t') dt' \right)^2  \right\rangle
 $$
 
@@ -40,10 +40,10 @@ computed from an exponential fit to the running integral of velocity auto-correl
 using the following Green-Kubo relation
 
 $$
-D = \frac{1}{3} \int_0^\infty \langle \boldsymbol{v}_i(t) \cdot \boldsymbol{v}_i(t_0) \rangle_{i,t} dt
+D = \frac{1}{3} \int_0^\infty \left\langle \mathbf{v}_i(t) \cdot \mathbf{v}_i(t_0) \right\rangle dt
 $$
 
-where $\boldsymbol{v}_i(t)$ denotes the velocity of particle $i$ at any specific time $t$.
+where $\mathbf{v}_i(t)$ denotes the velocity of particle $i$ at any specific time $t$.
 
 Usage: `python vacf.py -h`
 
