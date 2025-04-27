@@ -7,9 +7,9 @@ A collection of Python scripts for computing physical properties from molecular 
 
 Calculates viscosity using components of the pressure tensor obtained from a canonical ensemble (NVT)
 molecular dynamics (MD) simulation. Employs the Einstein or Green-Kubo relation, where viscosity is
-determined from the integral of the pressure tensor elements or their autocorrelation function, respectively.
+determined from the integral of the pressure tensor elements or their auto-correlation function, respectively.
 
-The viscosity, $\eta$, is calculated from the integral of the pressure tensor autocorrelation
+The viscosity, $\eta$, is calculated from the integral of the pressure tensor auto-correlation
 function over time following the Green--Kubo approach
 
 $$

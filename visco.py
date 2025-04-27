@@ -109,10 +109,10 @@ def parse_arguments():
 # Define autocorrelation
 def acf_(data):
     steps = data.shape[0]
-    size = int(steps * 0.3) # using 30% of the total steps as max correlation time
+    lag = int(steps * 0.3) # using 30% of the total steps as max correlation time
 
-    autocorrelation = np.zeros(size, dtype=float)
-    for shift in trange(size, ncols=100, desc='Progress'):
+    autocorrelation = np.zeros(lag, dtype=float)
+    for shift in trange(lag, ncols=100, desc='Progress'):
             autocorrelation[shift] = np.mean( (data[:steps-shift]) * (data[shift:]) )
 
     return autocorrelation
@@ -120,7 +120,7 @@ def acf_(data):
 # Define autocorrelation using FFT
 def acf(data):
     steps = data.shape[0]
-    lag = size = int(steps * 0.3) # using 30% of the total steps as max correlation time
+    lag = int(steps * 0.3) # using 30% of the total steps as max correlation time
 
     # Nearest size with power of 2 (for efficiency) to zero-pad the input data
     size = 2 ** np.ceil(np.log2(2 * steps - 1)).astype('int')
