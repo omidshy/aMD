@@ -13,8 +13,8 @@ The viscosity, $\eta$, is calculated from the integral of the pressure tensor au
 function over time following the Green--Kubo approach
 
 $$
-\eta = \frac{V}{k_B T} \int_0^\infty \left\langle P_{\alpha \beta} \left( t_0 \right)
-\cdot P_{\alpha \beta} \left( t \right) \right\rangle dt
+\eta = \frac{V}{k_B T} \int_0^\infty \left\langle P_{\alpha \beta} \left( t \right)
+\cdot P_{\alpha \beta} \left( t_0 \right) \right\rangle dt
 $$
 
 or the Einstein approach
