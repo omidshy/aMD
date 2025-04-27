@@ -15,10 +15,10 @@ of the following order and units of [atm/bar/Pa]:
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
 ---------------------------------------------------------------------------------------- '''
 
-import sys, argparse
+import os, argparse
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 from scipy import integrate
 from scipy.constants import Boltzmann
 from tqdm import trange
@@ -26,7 +26,7 @@ from tqdm import trange
 # --------------------------------------------------------
 # Define conversion ratios from various pressure units to Pascals (Pa)
 unit_conversion_ratios = {
-    'Pa': 1,
+    'Pa' : 1,
     'atm': 101325,
     'bar': 100000,
 }
@@ -36,7 +36,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(
         prog="visco.py",
-        description='Calculation of viscosity from (NVT) molecular dynamics simulations.'
+        description='Calculates of viscosity from (NVT) molecular dynamics simulations.'
     )
 
     # --- Input File Arguments ---
@@ -45,8 +45,8 @@ def parse_arguments():
         # The 'datafile' attribute in the returned 'args' will be an open file object
         type=argparse.FileType('r'),
         help='Path/name of the pressure tensor data file. '
-             'Note: the pressure tensor file should have space-separated columns '
-             '(Pxx, Pyy, Pzz, Pxy, Pxz, Pyz) and units of (atm, bar or Pa).'
+             'Note: the pressure tensor file should have space-separated columns: '
+             '(Pxx, Pyy, Pzz, Pxy, Pxz, Pyz) in unit of (atm, bar or Pa).'
     )
     parser.add_argument(
         '-u', '--unit',
@@ -109,7 +109,7 @@ def parse_arguments():
 # Define autocorrelation
 def acf_(data):
     steps = data.shape[0]
-    size = steps // 2
+    size = int(steps * 0.3) # using 30% of the total steps as max correlation time
 
     autocorrelation = np.zeros(size, dtype=float)
     for shift in trange(size, ncols=100, desc='Progress'):
@@ -120,7 +120,7 @@ def acf_(data):
 # Define autocorrelation using FFT
 def acf(data):
     steps = data.shape[0]
-    lag = steps // 2
+    lag = size = int(steps * 0.3) # using 30% of the total steps as max correlation time
 
     # Nearest size with power of 2 (for efficiency) to zero-pad the input data
     size = 2 ** np.ceil(np.log2(2 * steps - 1)).astype('int')
@@ -159,7 +159,9 @@ def einstein(P, time_array, timestep, volume, temperature):
 
     integral = (Pxy_int**2 + Pxz_int**2 + Pyz_int**2 + Pxxyy_int**2 + Pyyzz_int**2) / 5
 
-    viscosity = integral[1:] * (volume * 10**(-30) / (2 * Boltzmann * temperature * time_array[1:] * 10**(-12)))
+    numerator = integral[1:] * volume * 10**(-30)
+    denominator = 2 * Boltzmann * temperature * time_array[1:] * 10**(-12)
+    viscosity =  numerator / denominator
 
     return viscosity
 
@@ -235,6 +237,10 @@ if __name__ == "__main__":
             step = [comp * conv_ratio for comp in step]
             pres_tensor[:, i] = step
 
+    # Create a directory to save the results
+    if not os.path.exists('results'):
+        os.makedirs('results')
+
     # ------------------------------------
     viscosity = einstein(
         pres_tensor,
@@ -246,22 +252,23 @@ if __name__ == "__main__":
 
     # Plot the running integral of viscosity
     if args.plot:
-        pyplot.figure()
-        pyplot.plot(
+        plt.figure(figsize=(10,5))
+        plt.plot(
             time_array[:viscosity.shape[0]],
             viscosity[:]*1000, label='Viscosity'
             )
-        pyplot.xlabel('Time (ps)')
-        pyplot.ylabel('Viscosity (mPa.s)')
-        pyplot.legend()
-        pyplot.show()
+        plt.xlabel('Time (ps)')
+        plt.ylabel('Viscosity (mPa.s)')
+        plt.legend()
+        plt.show()
 
     # Save the running integral of viscosity as a csv file
     df = pd.DataFrame({
         "time(ps)" : time_array[:viscosity.shape[0]:args.each],
         "viscosity(Pa.s)" : viscosity[::args.each]
         })
-    df.to_csv("viscosity_Einstein.csv", index=False)
+    file = os.path.join("results", "viscosity_Einstein.csv")
+    df.to_csv(file, index=False)
 
     print(f"\nViscosity (Einstein): {round((viscosity[-1] * 1000), 2)} [mPa.s]")
 
@@ -277,15 +284,16 @@ if __name__ == "__main__":
     # Plot the normalized average ACF
     if args.plot:
         norm_avg_acf = avg_acf / avg_acf[0]
-        pyplot.figure()
-        pyplot.plot(
+        plt.figure(figsize=(10,5))
+        plt.plot(
             time_array[:avg_acf.shape[0]],
             norm_avg_acf[:], label='Average'
             )
-        pyplot.xlabel('Time (ps)')
-        pyplot.ylabel('ACF')
-        pyplot.legend()
-        pyplot.show()
+        plt.xscale("log")
+        plt.xlabel('Time (ps)')
+        plt.ylabel('ACF')
+        plt.legend()
+        plt.show()
 
     # Save the normalized average ACF as a csv file
     norm_avg_acf = avg_acf / avg_acf[0]
@@ -293,26 +301,28 @@ if __name__ == "__main__":
         "time (ps)" : time_array[:avg_acf.shape[0]],
         "ACF" : norm_avg_acf[:]
         })
-    df.to_csv("avg_acf.csv", index=False)
+    file = os.path.join("results", "avg_acf.csv")
+    df.to_csv(file, index=False)
 
     # Plot the time evolution of the viscosity estimate
     if args.plot:
-        pyplot.figure()
-        pyplot.plot(
+        plt.figure(figsize=(10,5))
+        plt.plot(
             time_array[:viscosity.shape[0]],
             viscosity[:]*1000, label='Viscosity'
             )
-        pyplot.xlabel('Time (ps)')
-        pyplot.ylabel('Viscosity (mPa.s)')
-        pyplot.legend()
-        pyplot.show()
+        plt.xlabel('Time (ps)')
+        plt.ylabel('Viscosity (mPa.s)')
+        plt.legend()
+        plt.show()
 
     # Save running integral of the viscosity as a csv file
     df = pd.DataFrame({
         "time(ps)" : time_array[:viscosity.shape[0]:args.each],
         "viscosity(Pa.s)" : viscosity[::args.each]
         })
-    df.to_csv("viscosity_GK.csv", index=False)
+    file = os.path.join("results", "viscosity_GK.csv")
+    df.to_csv(file, index=False)
 
     print(f"Viscosity (Green-Kubo): {round((viscosity[-1] * 1000), 2)} [mPa.s]")
     print("Note: Do not trust these values!")
