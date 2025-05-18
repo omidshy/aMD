@@ -13,7 +13,7 @@ determined from the integral of the pressure tensor elements or their auto-corre
 The viscosity, *η*, is calculated from the integral of the pressure tensor auto-correlation
 function over time following the Green--Kubo approach
 
-<picture align="center">
+<picture>
   <source
     media="(prefers-color-scheme: dark)"
     srcset="assets/visco_gk_dark.png"
@@ -36,7 +36,7 @@ $$-->
 
 or the Einstein approach
 
-<picture align="center">
+<picture>
   <source
     media="(prefers-color-scheme: dark)"
     srcset="assets/visco_en_dark.png"
@@ -48,7 +48,7 @@ or the Einstein approach
   <img
     alt="viscosity Einstein equation"
     src="assets/visco_en_light.png"
-    height="50"
+    height="55"
   />
 </picture>
 
@@ -72,7 +72,7 @@ Calculates self-diffusion coefficient from particle velocities. The self-diffusi
 computed from an exponential fit to the running integral of velocity auto-correlation function (VACF)
 using the following Green-Kubo relation
 
-<picture align="center">
+<picture>
   <source
     media="(prefers-color-scheme: dark)"
     srcset="assets/sdc_gk_dark.png"
