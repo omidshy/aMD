@@ -48,7 +48,7 @@ or the Einstein approach
   <img
     alt="viscosity Einstein equation"
     src="assets/visco_en_light.png"
-    height="55"
+    height="58"
   />
 </picture>
 
@@ -57,7 +57,7 @@ or the Einstein approach
 \left\langle \left( \int_0^\infty P_{\alpha \beta}(t') dt' \right)^2  \right\rangle
 $$-->
 
-where *V* is the simulation box volume, *k_B* is the Boltzmann constant, *T* is temperature,
+where *V* is the simulation box volume, *kB* is the Boltzmann constant, *T* is temperature,
 *Pαβ* denotes the off-diagonal element *αβ* of the pressure tensor,
 and the brackets indicate that average must be taken over all time origins *t0*.
 
