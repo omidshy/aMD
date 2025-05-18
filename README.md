@@ -25,7 +25,7 @@ function over time following the Green--Kubo approach
   <img
     alt="viscosity Green--Kubo equation"
     src="assets/visco_gk_light.png"
-    width="40%"
+    height="50"
   />
 </picture>
 
@@ -48,7 +48,7 @@ or the Einstein approach
   <img
     alt="viscosity Einstein equation"
     src="assets/visco_en_light.png"
-    width="40%"
+    height="50"
   />
 </picture>
 
@@ -84,7 +84,7 @@ using the following Green-Kubo relation
   <img
     alt="diffusion Green--Kubo equation"
     src="assets/sdc_gk_light.png"
-    width="40%"
+    height="50"
   />
 </picture>
 
@@ -92,7 +92,7 @@ using the following Green-Kubo relation
 D = \frac{1}{3} \int_0^\infty \left\langle \mathbf{v}_i(t) \cdot \mathbf{v}_i(t_0) \right\rangle dt
 $$-->
 
-where **v**i(t)* denotes the velocity of particle *i* at any specific time *t*.
+where ***v**i(t)* denotes the velocity of particle *i* at any specific time *t*.
 
 Usage: `python vacf.py -h`
 
