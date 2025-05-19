@@ -57,14 +57,15 @@ or the Einstein approach
 \left\langle \left( \int_0^\infty P_{\alpha \beta}(t') dt' \right)^2  \right\rangle
 $$-->
 
-where *V* is the simulation box volume, *kB* is the Boltzmann constant, *T* is temperature,
-*Pαβ* denotes the off-diagonal element *αβ* of the pressure tensor,
-and the brackets indicate that average must be taken over all time origins *t0*.
+where *V* is the simulation box volume, *k<sub>B</sub>* is the Boltzmann constant, *T* is temperature,
+*P<sub>αβ</sub>* denotes the off-diagonal element *αβ* of the pressure tensor,
+and the brackets indicate that average must be taken over all time origins *t<sub>0</sub>*.
 
 Usage: `python visco.py -h`
 
-An example data file, press.data, is available in the example directory. The required values to run 
-the example can be found in the md.param file.
+> [!TIP]
+> An example data file, press.data, is available in the example directory.
+> The required values to run the example can be found in the md.param file.
 
 ## vacf.py
 
@@ -92,9 +93,10 @@ using the following Green-Kubo relation
 D = \frac{1}{3} \int_0^\infty \left\langle \mathbf{v}_i(t) \cdot \mathbf{v}_i(t_0) \right\rangle dt
 $$-->
 
-where ***v**i(t)* denotes the velocity of particle *i* at any specific time *t*.
+where ***v**<sub>i</sub>(t)* denotes the velocity of particle *i* at any specific time *t*.
 
 Usage: `python vacf.py -h`
 
-An example data file, velocity.data, is available in the example directory. The required values to run
-the example can be found in the md.param file.
+> [!TIP]
+> An example data file, velocity.data, is available in the example directory.
+> The required values to run the example can be found in the md.param file.
