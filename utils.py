@@ -1,3 +1,10 @@
+"""
+Utility functions (classes) used by other scripts.
+
+This module provides:
+- plot_results: for generating 2D plots from the provided data.
+"""
+
 import matplotlib.pyplot as plt
 
 def plot_results(data, labels, scales={}):

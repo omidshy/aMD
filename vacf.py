@@ -1,4 +1,5 @@
-''' ----------------------------------------------------------------------------------------
+"""
+----------------------------------------------------------------------------------------
 vacf.py is a code for calculating self-diffusion coefficients from molecular 
 dynamics (MD) simulations. The self-diffusion coefficients are computed from 
 velocity auto-correlation functions (VACF) using the Green-Kubo expression.
@@ -7,9 +8,11 @@ Open-source free software under GNU GPL v3
 Copyright (C) 2022-2025 Omid Shayestehpour
 
 Please cite: J. Phys. Chem. B 2022, 126, 18, 3439–3449. (DOI 10.1021/acs.jpcb.1c10671)
----------------------------------------------------------------------------------------- '''
+----------------------------------------------------------------------------------------
+"""
 
-import os, argparse
+import os
+import argparse
 import numpy as np
 import pandas as pd
 from itertools import islice

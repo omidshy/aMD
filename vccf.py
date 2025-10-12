@@ -1,4 +1,5 @@
-''' ----------------------------------------------------------------------------------------
+"""
+----------------------------------------------------------------------------------------
 vccf.py is a code for calculating particles' velocity cross-correlation functions (VACF)
 from molecular dynamics simulations.
 
@@ -6,9 +7,11 @@ Open-source free software under GNU GPL v3
 Copyright (C) 2024-2025 Omid Shayestehpour
 
 Please cite: J. Chem. Phys. 161, 134505 (2024) (DOI 10.1063/5.0232631).
----------------------------------------------------------------------------------------- '''
+----------------------------------------------------------------------------------------
+"""
 
-import os, argparse
+import os
+import argparse
 import numpy as np
 import pandas as pd
 import freud

@@ -1,4 +1,5 @@
-''' ----------------------------------------------------------------------------------------
+"""
+----------------------------------------------------------------------------------------
 visco.py is a code for calculating viscosity from molecular dynamics (MD) simulations.
 
 Open-source free software under GNU GPL v3
@@ -11,9 +12,11 @@ or their autocorrelation function, obtained from NVT MD simulations.
 Notice: the pressure tensor file should have space-separated columns 
 of the following order and units of [atm/bar/Pa]:
 Pxx, Pyy, Pzz, Pxy, Pxz, Pyz
----------------------------------------------------------------------------------------- '''
+----------------------------------------------------------------------------------------
+"""
 
-import os, argparse
+import os
+import argparse
 import numpy as np
 import pandas as pd
 from scipy import integrate
